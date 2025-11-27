@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import openpyxl
 from datetime import datetime
 import os
+import shutil
 
 app = FastAPI()
 
@@ -143,6 +144,28 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         wb.close()
         
         return {"message": "Report added successfully", "management_number": new_mgmt_num}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload an Excel file to the backend directory"""
+    try:
+        # Validate file extension
+        if not file.filename.endswith(('.xlsx', '.xlsm')):
+            raise HTTPException(status_code=400, detail="Only .xlsx and .xlsm files are allowed")
+        
+        # Save the uploaded file
+        file_path = os.path.join(EXCEL_DIR, file.filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        return {
+            "message": "File uploaded successfully",
+            "filename": file.filename,
+            "path": file_path
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
