@@ -12,7 +12,8 @@ import {
     Layers,
     TrendingUp,
     Clock,
-    ArrowLeft
+    ArrowLeft,
+    AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -34,7 +35,7 @@ export default function CustomerDetailPage() {
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [customerName, setCustomerName] = useState('');
-    const [activeTab, setActiveTab] = useState<'timeline' | 'designs'>('timeline');
+    const [activeTab, setActiveTab] = useState<'timeline' | 'designs' | 'complaints'>('timeline');
     const [designRequests, setDesignRequests] = useState<DesignRequest[]>([]);
     const [selectedInterviewer, setSelectedInterviewer] = useState<string>('');
 
@@ -208,7 +209,7 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* 統計情報グリッド */}
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
                     <div className="text-center px-4 py-3 bg-gray-50 rounded border border-sf-border">
                         <p className="text-xs text-sf-text-weak mb-1">総活動数</p>
                         <p className="text-2xl font-semibold text-sf-text">{reports.length}</p>
@@ -228,6 +229,12 @@ export default function CustomerDetailPage() {
                     <div className="text-center px-4 py-3 bg-purple-50 rounded border border-purple-200">
                         <p className="text-xs text-purple-700 mb-1">デザイン案件</p>
                         <p className="text-2xl font-semibold text-purple-600">{designRequests.length}</p>
+                    </div>
+                    <div className="text-center px-4 py-3 bg-red-50 rounded border border-red-200">
+                        <p className="text-xs text-red-700 mb-1">クレーム</p>
+                        <p className="text-2xl font-semibold text-red-600">
+                            {reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length}
+                        </p>
                     </div>
                     <div className="text-center px-4 py-3 bg-orange-50 rounded border border-orange-200">
                         <p className="text-xs text-orange-700 mb-1">提案物</p>
@@ -272,6 +279,21 @@ export default function CustomerDetailPage() {
                         デザイン案件
                         <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs ml-1">
                             {designRequests.length}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('complaints')}
+                        className={`
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+              ${activeTab === 'complaints'
+                                ? 'border-sf-light-blue text-sf-light-blue'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+            `}
+                    >
+                        <AlertTriangle size={18} />
+                        クレーム対応
+                        <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs ml-1">
+                            {reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length}
                         </span>
                     </button>
                 </nav>
@@ -455,6 +477,63 @@ export default function CustomerDetailPage() {
                                     </div>
                                 ))}
                             </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'complaints' && (
+                    <div className="space-y-4">
+                        {reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length === 0 ? (
+                            <div className="text-center py-12 text-sf-text-weak bg-white rounded border border-sf-border">
+                                クレーム対応履歴はありません
+                            </div>
+                        ) : (
+                            reports
+                                .filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）'))
+                                .map((report, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="bg-white p-4 rounded border border-sf-border shadow-sm hover:shadow-md transition-shadow relative pl-12"
+                                    >
+                                        <div className="absolute left-4 top-4 flex flex-col items-center h-full">
+                                            <div className="bg-orange-100 p-1.5 rounded-full border border-orange-200 z-10">
+                                                <AlertTriangle size={16} className="text-orange-600" />
+                                            </div>
+                                            {idx !== reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length - 1 && (
+                                                <div className="w-px bg-gray-200 h-full absolute top-8"></div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-sf-text">{report.日付}</span>
+                                                <span className="text-sm text-orange-700 bg-orange-100 px-2 py-0.5 rounded font-medium">
+                                                    訪問（クレーム）
+                                                </span>
+                                            </div>
+                                            {report.面談者 && (
+                                                <div className="flex items-center text-sm text-sf-text-weak">
+                                                    <User size={14} className="mr-1" />
+                                                    {report.面談者}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {report.商談内容 && (
+                                            <div className="bg-orange-50 border border-orange-200 rounded p-3">
+                                                <p className="text-xs font-semibold text-orange-800 mb-1">対応内容</p>
+                                                <p className="text-sm text-sf-text whitespace-pre-wrap">{report.商談内容}</p>
+                                            </div>
+                                        )}
+
+                                        {report.次回プラン && (
+                                            <div className="mt-3 text-sm text-sf-text-weak">
+                                                <span className="font-medium">次回プラン: </span>
+                                                <span className="text-sf-text">{report.次回プラン}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
                         )}
                     </div>
                 )}
