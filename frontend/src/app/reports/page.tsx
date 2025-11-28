@@ -552,10 +552,18 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
                             >
                                 <option value="">選択してください</option>
-                                <option value="訪問">訪問</option>
+                                <option value="-">-</option>
+                                <option value="訪問（アポあり）">訪問（アポあり）</option>
+                                <option value="訪問（アポなし）">訪問（アポなし）</option>
+                                <option value="訪問（新規）">訪問（新規）</option>
                                 <option value="訪問（クレーム）">訪問（クレーム）</option>
-                                <option value="電話">電話</option>
-                                <option value="メール">メール</option>
+                                <option value="電話商談">電話商談</option>
+                                <option value="電話アポ取り">電話アポ取り</option>
+                                <option value="メール商談">メール商談</option>
+                                <option value="量販店調査">量販店調査</option>
+                                <option value="社内（半日）">社内（半日）</option>
+                                <option value="社内（１日）">社内（１日）</option>
+                                <option value="外出時間">外出時間</option>
                                 <option value="その他">その他</option>
                             </select>
                         </div>
@@ -616,14 +624,19 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
 
                         <div>
                             <label className="block text-sm font-medium text-sf-text mb-1">滞在時間</label>
-                            <input
-                                type="text"
+                            <select
                                 name="滞在時間"
                                 value={formData.滞在時間}
                                 onChange={handleChange}
-                                placeholder="例: 1時間"
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
-                            />
+                            >
+                                <option value="">選択してください</option>
+                                <option value="-">-</option>
+                                <option value="10分未満">10分未満</option>
+                                <option value="30分未満">30分未満</option>
+                                <option value="60分未満">60分未満</option>
+                                <option value="60分以上">60分以上</option>
+                            </select>
                         </div>
                     </div>
 
@@ -770,10 +783,18 @@ function EditReportModal({ report, onClose, onSuccess, selectedFile }: EditRepor
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
                             >
                                 <option value="">選択してください</option>
-                                <option value="訪問">訪問</option>
+                                <option value="-">-</option>
+                                <option value="訪問（アポあり）">訪問（アポあり）</option>
+                                <option value="訪問（アポなし）">訪問（アポなし）</option>
+                                <option value="訪問（新規）">訪問（新規）</option>
                                 <option value="訪問（クレーム）">訪問（クレーム）</option>
-                                <option value="電話">電話</option>
-                                <option value="メール">メール</option>
+                                <option value="電話商談">電話商談</option>
+                                <option value="電話アポ取り">電話アポ取り</option>
+                                <option value="メール商談">メール商談</option>
+                                <option value="量販店調査">量販店調査</option>
+                                <option value="社内（半日）">社内（半日）</option>
+                                <option value="社内（１日）">社内（１日）</option>
+                                <option value="外出時間">外出時間</option>
                                 <option value="その他">その他</option>
                             </select>
                         </div>
@@ -803,13 +824,19 @@ function EditReportModal({ report, onClose, onSuccess, selectedFile }: EditRepor
 
                         <div>
                             <label className="block text-sm font-medium text-sf-text mb-1">滞在時間</label>
-                            <input
-                                type="text"
+                            <select
                                 name="滞在時間"
                                 value={formData.滞在時間}
                                 onChange={handleChange}
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
-                            />
+                            >
+                                <option value="">選択してください</option>
+                                <option value="-">-</option>
+                                <option value="10分未満">10分未満</option>
+                                <option value="30分未満">30分未満</option>
+                                <option value="60分未満">60分未満</option>
+                                <option value="60分以上">60分以上</option>
+                            </select>
                         </div>
                     </div>
 
