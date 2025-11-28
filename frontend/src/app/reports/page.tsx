@@ -530,30 +530,8 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                             </select>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-sf-text mb-1">エリア</label>
-                            <input
-                                type="text"
-                                name="エリア"
-                                value={formData.エリア}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-sf-text mb-1">得意先CD</label>
-                            <input
-                                type="text"
-                                name="得意先CD"
-                                value={formData.得意先CD}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
-                            />
-                        </div>
-
-                        <div className="relative">
-                            <label className="block text-sm font-medium text-sf-text mb-1">訪問先名 *</label>
+                        <div className="relative md:col-span-2">
+                            <label className="block text-sm font-medium text-sf-text mb-1">訪問先名（得意先名） *</label>
                             <input
                                 type="text"
                                 name="訪問先名"
@@ -566,6 +544,7 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                 }}
                                 required
                                 autoComplete="off"
+                                placeholder="得意先名を入力してください"
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
                             />
                             {showSuggestions && filteredCustomers.length > 0 && (
@@ -582,6 +561,14 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            )}
+                            {formData.得意先CD && (
+                                <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-sf-text-weak border border-gray-200">
+                                    <span className="font-medium">得意先CD:</span> {formData.得意先CD} |
+                                    <span className="font-medium ml-2">エリア:</span> {formData.エリア || '-'} |
+                                    <span className="font-medium ml-2">ランク:</span> {formData.ランク || '-'} |
+                                    <span className="font-medium ml-2">重点:</span> {formData.重点顧客 || '-'}
                                 </div>
                             )}
                         </div>
