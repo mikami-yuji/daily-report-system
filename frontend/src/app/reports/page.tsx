@@ -278,13 +278,13 @@ export default function ReportsPage() {
                                         <div>
                                             <h4 className="text-xs font-semibold text-sf-text-weak mb-1">商談内容</h4>
                                             <p className="text-sm text-sf-text whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-100 min-h-[80px]">
-                                                {report.商談内容 || 'なし'}
+                                                {cleanText(report.商談内容) || 'なし'}
                                             </p>
                                         </div>
                                         <div>
                                             <h4 className="text-xs font-semibold text-sf-text-weak mb-1">次回プラン</h4>
                                             <p className="text-sm text-sf-text whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-100">
-                                                {report.次回プラン || 'なし'}
+                                                {cleanText(report.次回プラン) || 'なし'}
                                             </p>
                                         </div>
                                     </div>
@@ -318,13 +318,13 @@ export default function ReportsPage() {
                                         <div>
                                             <h4 className="text-xs font-semibold text-sf-text-weak mb-1">上長コメント</h4>
                                             <p className="text-sm text-sf-text whitespace-pre-wrap bg-blue-50 p-3 rounded border border-blue-100 min-h-[80px]">
-                                                {report.上長コメント || 'なし'}
+                                                {cleanText(report.上長コメント) || 'なし'}
                                             </p>
                                         </div>
                                         <div>
                                             <h4 className="text-xs font-semibold text-sf-text-weak mb-1">コメント返信欄</h4>
                                             <p className="text-sm text-sf-text whitespace-pre-wrap bg-green-50 p-3 rounded border border-green-100">
-                                                {report.コメント返信欄 || 'なし'}
+                                                {cleanText(report.コメント返信欄) || 'なし'}
                                             </p>
                                         </div>
                                     </div>
@@ -343,11 +343,16 @@ export default function ReportsPage() {
     );
 }
 
+function cleanText(text: string | null | undefined): string {
+    if (!text) return '';
+    return String(text).replace(/_x000D_/g, '\n').replace(/\r/g, '');
+}
+
 function InfoRow({ label, value }: { label: string; value: any }) {
     return (
         <div className="flex justify-between items-start gap-2">
             <span className="text-xs text-sf-text-weak whitespace-nowrap">{label}:</span>
-            <span className="text-sm text-sf-text text-right flex-1">{value || '-'}</span>
+            <span className="text-sm text-sf-text text-right flex-1">{cleanText(value) || '-'}</span>
         </div>
     );
 }
@@ -356,8 +361,8 @@ function LongTextRow({ label, value }: { label: string; value: any }) {
     return (
         <div className="space-y-1">
             <span className="text-xs text-sf-text-weak font-medium">{label}</span>
-            <p className="text-sm text-sf-text bg-white p-3 rounded border border-sf-border min-h-[60px]">
-                {value || '-'}
+            <p className="text-sm text-sf-text bg-white p-3 rounded border border-sf-border min-h-[60px] whitespace-pre-wrap">
+                {cleanText(value) || '-'}
             </p>
         </div>
     );

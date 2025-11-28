@@ -101,7 +101,9 @@ def get_reports(filename: str = DEFAULT_EXCEL_FILE):
                     cleaned_record[key] = None
                 elif isinstance(value, str):
                     # Replace Excel's carriage return artifacts with proper newlines
-                    cleaned_value = value.replace('_x000D_', '\n')
+                    import re
+                    cleaned_value = re.sub(r'_x000D_', '\n', value)
+                    cleaned_value = cleaned_value.replace('\r', '')
                     cleaned_record[key] = cleaned_value
                 else:
                     cleaned_record[key] = value
