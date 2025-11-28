@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { getReports, Report } from '@/lib/api';
+import { useFile } from '@/context/FileContext';
 import { Search, Calendar, User, FileText, ChevronDown, ChevronUp, Package, Layers, TrendingUp, Filter } from 'lucide-react';
 import Link from 'next/link';
 
@@ -17,6 +18,7 @@ interface DesignRequest {
 }
 
 export default function DesignSearchPage() {
+    const { selectedFile } = useFile();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -29,7 +31,10 @@ export default function DesignSearchPage() {
     const [customers, setCustomers] = useState<Array<{ code: string, name: string }>>([]);
 
     useEffect(() => {
-        getReports().then(data => {
+        if (!selectedFile) return;
+
+        setLoading(true);
+        getReports(selectedFile).then(data => {
             setReports(data);
             const requests = processDesignRequests(data);
 
@@ -51,7 +56,7 @@ export default function DesignSearchPage() {
             console.error(err);
             setLoading(false);
         });
-    }, []);
+    }, [selectedFile]);
 
     const processDesignRequests = (data: Report[]): DesignRequest[] => {
         const designMap = new Map<number, DesignRequest>();

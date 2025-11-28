@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getReports, Report } from '@/lib/api';
+import { useFile } from '@/context/FileContext';
 import {
     User,
     MapPin,
@@ -28,6 +29,7 @@ interface DesignRequest {
 }
 
 export default function CustomerDetailPage() {
+    const { selectedFile } = useFile();
     const params = useParams();
     const customerCode = params.code as string;
 
@@ -39,8 +41,8 @@ export default function CustomerDetailPage() {
     const [selectedInterviewer, setSelectedInterviewer] = useState<string>('');
 
     useEffect(() => {
-        if (customerCode) {
-            getReports().then(data => {
+        if (customerCode && selectedFile) {
+            getReports(selectedFile).then(data => {
                 const customerReports = data.filter(r => String(r.得意先CD) === customerCode);
 
                 customerReports.sort((a, b) => {
@@ -62,7 +64,7 @@ export default function CustomerDetailPage() {
                 setLoading(false);
             });
         }
-    }, [customerCode]);
+    }, [customerCode, selectedFile]);
 
     const processDesignRequests = (data: Report[]) => {
         const designMap = new Map<number, DesignRequest>();
