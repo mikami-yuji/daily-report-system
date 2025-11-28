@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getReports, Report, getCustomers, Customer } from '@/lib/api';
+import { getReports, Report, getCustomers, Customer, updateReport } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table } from 'lucide-react';
+import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table, Edit } from 'lucide-react';
 
 export default function ReportsPage() {
     const { files, selectedFile, setSelectedFile } = useFile();
@@ -13,6 +13,8 @@ export default function ReportsPage() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
     const [showNewReportModal, setShowNewReportModal] = useState(false);
+    const [showEditReportModal, setShowEditReportModal] = useState(false);
+    const [editingReport, setEditingReport] = useState<Report | null>(null);
 
     useEffect(() => {
         if (selectedFile) {
@@ -175,7 +177,18 @@ export default function ReportsPage() {
 
                                     {/* 詳細セクション */}
                                     {isExpanded && (
-                                        <div className="px-4 pb-4 bg-gray-50 border-t border-sf-border">
+                                        <div className="px-4 pb-4 bg-gray-50 border-t border-sf-border relative">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingReport(report);
+                                                    setShowEditReportModal(true);
+                                                }}
+                                                className="absolute top-4 right-4 p-2 bg-white border border-sf-border rounded text-sf-text-weak hover:text-sf-light-blue hover:border-sf-light-blue transition-colors shadow-sm"
+                                                title="編集"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                                                 {/* 基本情報 */}
                                                 <div className="space-y-3">
@@ -350,6 +363,23 @@ export default function ReportsPage() {
                     onClose={() => setShowNewReportModal(false)}
                     onSuccess={() => {
                         setShowNewReportModal(false);
+                        fetchData();
+                    }}
+                    selectedFile={selectedFile}
+                />
+            )}
+
+            {/* 日報編集モーダル */}
+            {showEditReportModal && editingReport && (
+                <EditReportModal
+                    report={editingReport}
+                    onClose={() => {
+                        setShowEditReportModal(false);
+                        setEditingReport(null);
+                    }}
+                    onSuccess={() => {
+                        setShowEditReportModal(false);
+                        setEditingReport(null);
                         fetchData();
                     }}
                     selectedFile={selectedFile}
@@ -644,6 +674,217 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                             className="px-4 py-2 bg-sf-light-blue text-white rounded hover:bg-blue-700 disabled:opacity-50"
                         >
                             {submitting ? '作成中...' : '作成'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+interface EditReportModalProps {
+    report: Report;
+    onClose: () => void;
+    onSuccess: () => void;
+    selectedFile: string;
+}
+
+function EditReportModal({ report, onClose, onSuccess, selectedFile }: EditReportModalProps) {
+    const [formData, setFormData] = useState({
+        日付: report.日付 || '',
+        行動内容: report.行動内容 || '',
+        エリア: report.エリア || '',
+        得意先CD: report.得意先CD || '',
+        訪問先名: report.訪問先名 || '',
+        面談者: report.面談者 || '',
+        滞在時間: report.滞在時間 || '',
+        商談内容: report.商談内容 || '',
+        提案物: report.提案物 || '',
+        次回プラン: report.次回プラン || '',
+        重点顧客: report.重点顧客 || '',
+        ランク: report.ランク || '',
+        上長コメント: report.上長コメント || '',
+        コメント返信欄: report.コメント返信欄 || ''
+    });
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+
+        try {
+            // We need to pass the management number to update the specific report
+            const { 管理番号, ...rest } = report;
+            await updateReport(report.管理番号, { ...rest, ...formData }, selectedFile);
+            onSuccess();
+        } catch (error) {
+            console.error('Error updating report:', error);
+            alert('日報の更新に失敗しました');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        setFormData(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-sf-border p-4 flex justify-between items-center z-10">
+                    <h2 className="text-xl font-bold text-sf-text">日報編集 (No. {report.管理番号})</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-sf-text-weak hover:text-sf-text"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">日付 *</label>
+                            <input
+                                type="text"
+                                name="日付"
+                                value={formData.日付}
+                                onChange={handleChange}
+                                placeholder="YY/MM/DD"
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">行動内容 *</label>
+                            <select
+                                name="行動内容"
+                                value={formData.行動内容}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            >
+                                <option value="">選択してください</option>
+                                <option value="訪問">訪問</option>
+                                <option value="訪問（クレーム）">訪問（クレーム）</option>
+                                <option value="電話">電話</option>
+                                <option value="メール">メール</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-sf-text mb-1">訪問先名（得意先名） *</label>
+                            <input
+                                type="text"
+                                name="訪問先名"
+                                value={formData.訪問先名}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">面談者</label>
+                            <input
+                                type="text"
+                                name="面談者"
+                                value={formData.面談者}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">滞在時間</label>
+                            <input
+                                type="text"
+                                name="滞在時間"
+                                value={formData.滞在時間}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">商談内容</label>
+                        <textarea
+                            name="商談内容"
+                            value={formData.商談内容}
+                            onChange={handleChange}
+                            rows={4}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">提案物</label>
+                        <textarea
+                            name="提案物"
+                            value={formData.提案物}
+                            onChange={handleChange}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">次回プラン</label>
+                        <textarea
+                            name="次回プラン"
+                            value={formData.次回プラン}
+                            onChange={handleChange}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-sf-border">
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1 text-blue-800">上長コメント</label>
+                            <textarea
+                                name="上長コメント"
+                                value={formData.上長コメント}
+                                onChange={handleChange}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-blue-200 bg-blue-50 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                placeholder="上長からのコメントを入力..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1 text-green-800">コメント返信欄</label>
+                            <textarea
+                                name="コメント返信欄"
+                                value={formData.コメント返信欄}
+                                onChange={handleChange}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-green-200 bg-green-50 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                                placeholder="コメントへの返信を入力..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-sf-border">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2 border border-sf-border rounded text-sf-text hover:bg-gray-50"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-sf-light-blue text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {submitting ? '更新中...' : '更新'}
                         </button>
                     </div>
                 </form>

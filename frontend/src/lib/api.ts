@@ -58,6 +58,12 @@ export const addReport = async (report: Omit<Report, '管理番号'>, filename?:
     return response.data;
 };
 
+export const updateReport = async (managementNumber: number, report: Omit<Report, '管理番号'>, filename?: string) => {
+    const params = filename ? { filename } : {};
+    const response = await axios.put(`${API_URL}/reports/${managementNumber}`, report, { params });
+    return response.data;
+};
+
 export const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
