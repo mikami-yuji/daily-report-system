@@ -12,6 +12,7 @@ export default function ReportsPage() {
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
+    const [showNewReportModal, setShowNewReportModal] = useState(false);
 
     useEffect(() => {
         if (selectedFile) {
@@ -119,7 +120,10 @@ export default function ReportsPage() {
                     <button onClick={fetchData} className="p-2 border border-sf-border rounded hover:bg-gray-50 text-sf-text-weak transition-colors">
                         <RefreshCw size={16} />
                     </button>
-                    <button className="bg-sf-light-blue text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors">
+                    <button
+                        onClick={() => setShowNewReportModal(true)}
+                        className="bg-sf-light-blue text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors"
+                    >
                         <Plus size={16} />
                         新規作成
                     </button>
@@ -339,6 +343,18 @@ export default function ReportsPage() {
                 <span>{reports.length} 件 • {selectedFile}</span>
                 <span>並び順: {sortOrder === 'desc' ? '新しい順' : '古い順'}</span>
             </div>
+
+            {/* 新規日報作成モーダル */}
+            {showNewReportModal && (
+                <NewReportModal
+                    onClose={() => setShowNewReportModal(false)}
+                    onSuccess={() => {
+                        setShowNewReportModal(false);
+                        fetchData();
+                    }}
+                    selectedFile={selectedFile}
+                />
+            )}
         </div>
     );
 }
@@ -364,6 +380,219 @@ function LongTextRow({ label, value }: { label: string; value: any }) {
             <p className="text-sm text-sf-text bg-white p-3 rounded border border-sf-border min-h-[60px] whitespace-pre-wrap">
                 {cleanText(value) || '-'}
             </p>
+        </div>
+    );
+}
+
+interface NewReportModalProps {
+    onClose: () => void;
+    onSuccess: () => void;
+    selectedFile: string;
+}
+
+function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProps) {
+    const [formData, setFormData] = useState({
+        日付: new Date().toISOString().split('T')[0].replace(/-/g, '/').slice(2), // YY/MM/DD format
+        行動内容: '',
+        エリア: '',
+        得意先CD: '',
+        訪問先名: '',
+        面談者: '',
+        滞在時間: '',
+        商談内容: '',
+        提案物: '',
+        次回プラン: ''
+    });
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+
+        try {
+            const response = await fetch(`http://localhost:8000/reports?filename=${encodeURIComponent(selectedFile)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create report');
+            }
+
+            onSuccess();
+        } catch (error) {
+            console.error('Error creating report:', error);
+            alert('日報の作成に失敗しました');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        setFormData(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-sf-border p-4 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-sf-text">新規日報作成</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-sf-text-weak hover:text-sf-text"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">日付 *</label>
+                            <input
+                                type="text"
+                                name="日付"
+                                value={formData.日付}
+                                onChange={handleChange}
+                                placeholder="YY/MM/DD"
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">行動内容 *</label>
+                            <select
+                                name="行動内容"
+                                value={formData.行動内容}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            >
+                                <option value="">選択してください</option>
+                                <option value="訪問">訪問</option>
+                                <option value="訪問（クレーム）">訪問（クレーム）</option>
+                                <option value="電話">電話</option>
+                                <option value="メール">メール</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">エリア</label>
+                            <input
+                                type="text"
+                                name="エリア"
+                                value={formData.エリア}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">得意先CD</label>
+                            <input
+                                type="text"
+                                name="得意先CD"
+                                value={formData.得意先CD}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">訪問先名 *</label>
+                            <input
+                                type="text"
+                                name="訪問先名"
+                                value={formData.訪問先名}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">面談者</label>
+                            <input
+                                type="text"
+                                name="面談者"
+                                value={formData.面談者}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">滞在時間</label>
+                            <input
+                                type="text"
+                                name="滞在時間"
+                                value={formData.滞在時間}
+                                onChange={handleChange}
+                                placeholder="例: 1時間"
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">商談内容</label>
+                        <textarea
+                            name="商談内容"
+                            value={formData.商談内容}
+                            onChange={handleChange}
+                            rows={4}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">提案物</label>
+                        <textarea
+                            name="提案物"
+                            value={formData.提案物}
+                            onChange={handleChange}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">次回プラン</label>
+                        <textarea
+                            name="次回プラン"
+                            value={formData.次回プラン}
+                            onChange={handleChange}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-sf-border">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2 border border-sf-border rounded text-sf-text hover:bg-gray-50"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-sf-light-blue text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {submitting ? '作成中...' : '作成'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }
