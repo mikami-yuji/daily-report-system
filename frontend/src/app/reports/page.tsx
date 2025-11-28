@@ -289,8 +289,32 @@ export default function ReportsPage() {
                                         </div>
                                     </div>
 
-                                    {/* 右カラム: 上長コメント、コメント返信欄 */}
+                                    {/* 右カラム: 承認状況、上長コメント、コメント返信欄 */}
                                     <div className="space-y-4">
+                                        {/* 承認・確認状況 */}
+                                        <div className="border border-sf-border rounded overflow-hidden">
+                                            <div className="flex text-center text-xs divide-x divide-sf-border bg-gray-50 font-medium text-sf-text-weak">
+                                                <div className="flex-1 py-1">上長</div>
+                                                <div className="flex-1 py-1">山澄常務</div>
+                                                <div className="flex-1 py-1">岡本常務</div>
+                                                <div className="flex-1 py-1">中野次長</div>
+                                            </div>
+                                            <div className="flex text-center text-sm divide-x divide-sf-border bg-white">
+                                                <div className="flex-1 py-2 h-8 flex items-center justify-center">
+                                                    {report.上長 ? <span className="text-sf-light-blue font-bold">✓</span> : <span className="text-gray-300">-</span>}
+                                                </div>
+                                                <div className="flex-1 py-2 h-8 flex items-center justify-center">
+                                                    {report.山澄常務 ? <span className="text-sf-light-blue font-bold">✓</span> : <span className="text-gray-300">-</span>}
+                                                </div>
+                                                <div className="flex-1 py-2 h-8 flex items-center justify-center">
+                                                    {report.岡本常務 ? <span className="text-sf-light-blue font-bold">✓</span> : <span className="text-gray-300">-</span>}
+                                                </div>
+                                                <div className="flex-1 py-2 h-8 flex items-center justify-center">
+                                                    {report.中野次長 ? <span className="text-sf-light-blue font-bold">✓</span> : <span className="text-gray-300">-</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <h4 className="text-xs font-semibold text-sf-text-weak mb-1">上長コメント</h4>
                                             <p className="text-sm text-sf-text whitespace-pre-wrap bg-blue-50 p-3 rounded border border-blue-100 min-h-[80px]">
