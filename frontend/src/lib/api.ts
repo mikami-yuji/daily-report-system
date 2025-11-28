@@ -58,6 +58,12 @@ export const addReport = async (report: Omit<Report, '管理番号'>, filename?:
     return response.data;
 };
 
+export const updateReport = async (managementNumber: number, report: Omit<Report, '管理番号'>, filename?: string) => {
+    const params = filename ? { filename } : {};
+    const response = await axios.put(`${API_URL}/reports/${managementNumber}`, report, { params });
+    return response.data;
+};
+
 export const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -83,5 +89,11 @@ export const getCustomers = async (filename?: string): Promise<Customer[]> => {
     const params = filename ? { filename } : {};
     const response = await axios.get(`${API_URL}/customers`, { params });
     return response.data;
+};
+
+export const getInterviewers = async (customerCd: string, filename?: string): Promise<string[]> => {
+    const params = filename ? { filename } : {};
+    const response = await axios.get(`${API_URL}/interviewers/${customerCd}`, { params });
+    return response.data.interviewers;
 };
 

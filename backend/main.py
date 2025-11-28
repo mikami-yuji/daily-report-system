@@ -32,6 +32,8 @@ class ReportInput(BaseModel):
     商談内容: str = ""
     提案物: str = ""
     次回プラン: str = ""
+    上長コメント: str = ""
+    コメント返信欄: str = ""
 
 @app.get("/")
 def read_root():
@@ -160,6 +162,37 @@ def get_reports(filename: str = DEFAULT_EXCEL_FILE):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/interviewers/{customer_cd}")
+def get_interviewers(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
+    """Get list of interviewers for a specific customer"""
+    excel_file = os.path.join(EXCEL_DIR, filename)
+    if not os.path.exists(excel_file):
+        raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found")
+    
+    try:
+        # Read the '営業日報' sheet
+        df = pd.read_excel(excel_file, sheet_name='営業日報', header=0)
+        
+        # Clean up column names
+        df.columns = [str(col).replace('\n', '') for col in df.columns]
+        
+        # Rename specific columns
+        df = df.rename(columns={
+            '得意先CD.': '得意先CD',
+        })
+        
+        # Filter by customer code and get unique interviewers
+        customer_reports = df[df['得意先CD'] == customer_cd]
+        interviewers = customer_reports['面談者'].dropna().unique().tolist()
+        
+        # Remove empty strings and sort
+        interviewers = [str(i).strip() for i in interviewers if str(i).strip() and str(i).strip() != 'nan']
+        interviewers = sorted(set(interviewers))
+        
+        return {"customer_cd": customer_cd, "interviewers": interviewers}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/reports")
 def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
     excel_file = os.path.join(EXCEL_DIR, filename)
@@ -191,12 +224,58 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         ws.cell(row=next_row, column=19, value=report.商談内容)  # 商談内容 (Index 19)
         ws.cell(row=next_row, column=20, value=report.提案物)  # 提案物 (Index 20)
         ws.cell(row=next_row, column=21, value=report.次回プラン)  # 次回プラン (Index 21)
+        ws.cell(row=next_row, column=23, value=report.上長コメント)  # 上長コメント (Index 23)
+        ws.cell(row=next_row, column=24, value=report.コメント返信欄)  # コメント返信欄 (Index 24)
         
         # Save the workbook
         wb.save(excel_file)
         wb.close()
         
         return {"message": "Report added successfully", "management_number": new_mgmt_num}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/reports/{management_number}")
+def update_report(management_number: int, report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
+    excel_file = os.path.join(EXCEL_DIR, filename)
+    if not os.path.exists(excel_file):
+        raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found")
+    
+    try:
+        # Load workbook with openpyxl to preserve formulas and macros
+        wb = openpyxl.load_workbook(excel_file, keep_vba=True)
+        ws = wb['営業日報']
+        
+        # Find the row with the matching management number
+        target_row = None
+        for row in range(2, ws.max_row + 1):
+            cell_value = ws.cell(row=row, column=1).value
+            if cell_value == management_number:
+                target_row = row
+                break
+        
+        if not target_row:
+            raise HTTPException(status_code=404, detail=f"Report with management number {management_number} not found")
+        
+        # Update the data
+        ws.cell(row=target_row, column=2, value=report.日付)
+        ws.cell(row=target_row, column=3, value=report.行動内容)
+        ws.cell(row=target_row, column=4, value=report.エリア)
+        ws.cell(row=target_row, column=5, value=report.得意先CD)
+        ws.cell(row=target_row, column=7, value=report.訪問先名)
+        ws.cell(row=target_row, column=12, value=report.面談者)
+        ws.cell(row=target_row, column=13, value=report.滞在時間)
+        ws.cell(row=target_row, column=19, value=report.商談内容)
+        ws.cell(row=target_row, column=20, value=report.提案物)
+        ws.cell(row=target_row, column=21, value=report.次回プラン)
+        ws.cell(row=target_row, column=23, value=report.上長コメント)
+        ws.cell(row=target_row, column=24, value=report.コメント返信欄)
+        
+        # Save the workbook
+        wb.save(excel_file)
+        wb.close()
+        
+        return {"message": "Report updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
