@@ -249,8 +249,32 @@ export default function ReportsPage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* 左カラム: 商談内容、次回プラン */}
+                                    {/* 左カラム: デザイン情報、商談内容、次回プラン */}
                                     <div className="space-y-4">
+                                        {/* デザイン情報（データがある場合のみ表示） */}
+                                        {(report.デザイン進捗状況 || report['デザイン依頼No.'] || report.デザイン種別 || report.デザイン名 || report.デザイン提案有無) && (
+                                            <div className="bg-purple-50 p-3 rounded border border-purple-100 space-y-2">
+                                                <h4 className="text-xs font-semibold text-purple-800 border-b border-purple-200 pb-1 mb-2">デザイン情報</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                                    {report.デザイン進捗状況 && (
+                                                        <div><span className="text-xs text-sf-text-weak">進捗:</span> <span className="font-medium text-sf-text">{report.デザイン進捗状況}</span></div>
+                                                    )}
+                                                    {report['デザイン依頼No.'] && (
+                                                        <div><span className="text-xs text-sf-text-weak">No:</span> <span className="font-medium text-sf-text">{report['デザイン依頼No.']}</span></div>
+                                                    )}
+                                                    {report.デザイン種別 && (
+                                                        <div><span className="text-xs text-sf-text-weak">種別:</span> <span className="text-sf-text">{report.デザイン種別}</span></div>
+                                                    )}
+                                                    {report.デザイン名 && (
+                                                        <div><span className="text-xs text-sf-text-weak">名称:</span> <span className="text-sf-text">{report.デザイン名}</span></div>
+                                                    )}
+                                                    {report.デザイン提案有無 && (
+                                                        <div className="col-span-full"><span className="text-xs text-sf-text-weak">提案有無:</span> <span className="text-sf-text">{report.デザイン提案有無}</span></div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div>
                                             <h4 className="text-xs font-semibold text-sf-text-weak mb-1">商談内容</h4>
                                             <p className="text-sm text-sf-text whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-100 min-h-[80px]">
