@@ -554,11 +554,11 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
 
     const handleDesignSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const designNo = e.target.value;
-        const selectedDesign = designs.find(d => d.デザイン依頼No === designNo);
+        const selectedDesign = designs.find(d => String(d.デザイン依頼No) === designNo);
         if (selectedDesign) {
             setFormData(prev => ({
                 ...prev,
-                'デザイン依頼No.': selectedDesign.デザイン依頼No,
+                'デザイン依頼No.': String(selectedDesign.デザイン依頼No),
                 デザイン種別: selectedDesign.デザイン種別,
                 デザイン名: selectedDesign.デザイン名,
                 デザイン進捗状況: selectedDesign.デザイン進捗状況
@@ -762,7 +762,7 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                     >
                                         <option value="">選択してください</option>
                                         {designs.map((design) => (
-                                            <option key={design.デザイン依頼No} value={design.デザイン依頼No}>
+                                            <option key={String(design.デザイン依頼No)} value={String(design.デザイン依頼No)}>
                                                 {design.デザイン依頼No} - {design.デザイン名} ({design.デザイン進捗状況})
                                             </option>
                                         ))}
