@@ -248,11 +248,18 @@ def get_designs(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
             # Here we just take the last one in the dataframe which corresponds to the last row in Excel
             latest_record = design_records.iloc[-1]
             
+            # Get the status
+            status = str(latest_record['デザイン進捗状況']) if pd.notna(latest_record['デザイン進捗状況']) else ""
+            
+            # Skip designs with completed/rejected statuses: 出稿, 不採用(コンペ負け), 不採用(企画倒れ)
+            if '出稿' in status or 'コンペ負け' in status or '企画倒れ' in status:
+                continue
+            
             design_info = {
                 "デザイン依頼No": design_no,
                 "デザイン名": str(latest_record['デザイン名']) if pd.notna(latest_record['デザイン名']) else "",
                 "デザイン種別": str(latest_record['デザイン種別']) if pd.notna(latest_record['デザイン種別']) else "",
-                "デザイン進捗状況": str(latest_record['デザイン進捗状況']) if pd.notna(latest_record['デザイン進捗状況']) else "",
+                "デザイン進捗状況": status,
                 "デザイン提案有無": str(latest_record['デザイン提案有無']) if pd.notna(latest_record['デザイン提案有無']) else ""
             }
             designs.append(design_info)
