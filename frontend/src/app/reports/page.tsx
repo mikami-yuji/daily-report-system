@@ -639,24 +639,46 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
 
                         <div>
                             <label className="block text-sm font-medium text-sf-text mb-1">面談者</label>
-                            <input
-                                type="text"
-                                name="面談者"
-                                value={formData.面談者}
-                                onChange={handleChange}
-                                list="interviewers-list"
-                                placeholder={interviewers.length > 0 ? "候補から選択または新規入力" : "面談者名を入力"}
-                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
-                            />
-                            <datalist id="interviewers-list">
-                                {interviewers.map((interviewer, idx) => (
-                                    <option key={idx} value={interviewer} />
-                                ))}
-                            </datalist>
-                            {interviewers.length > 0 && (
-                                <p className="mt-1 text-xs text-sf-text-weak">
-                                    過去の面談者: {interviewers.join(', ')}
-                                </p>
+                            {interviewers.length > 0 ? (
+                                <div className="space-y-2">
+                                    <select
+                                        value={formData.面談者}
+                                        onChange={(e) => {
+                                            if (e.target.value === '__custom__') {
+                                                // Keep current value or clear it
+                                                return;
+                                            }
+                                            setFormData(prev => ({ ...prev, 面談者: e.target.value }));
+                                        }}
+                                        className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                                    >
+                                        <option value="">候補から選択...</option>
+                                        {interviewers.map((interviewer, idx) => (
+                                            <option key={idx} value={interviewer}>{interviewer}</option>
+                                        ))}
+                                        <option value="__custom__">--- 新規入力 ---</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        name="面談者"
+                                        value={formData.面談者}
+                                        onChange={handleChange}
+                                        placeholder="または直接入力"
+                                        className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue text-sm"
+                                    />
+                                    <p className="text-xs text-sf-text-weak">
+                                        過去の面談者: {interviewers.slice(0, 3).join(', ')}{interviewers.length > 3 ? '...' : ''}
+                                    </p>
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    name="面談者"
+                                    value={formData.面談者}
+                                    onChange={handleChange}
+                                    placeholder="面談者名を入力"
+                                    className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                                />
                             )}
                         </div>
 

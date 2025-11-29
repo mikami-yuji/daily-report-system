@@ -181,8 +181,15 @@ def get_interviewers(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
             '得意先CD.': '得意先CD',
         })
         
+        # Convert customer_cd to float for matching (Excel stores as float)
+        try:
+            customer_cd_float = float(customer_cd)
+        except ValueError:
+            # If conversion fails, try string matching
+            customer_cd_float = customer_cd
+        
         # Filter by customer code and get unique interviewers
-        customer_reports = df[df['得意先CD'] == customer_cd]
+        customer_reports = df[df['得意先CD'] == customer_cd_float]
         interviewers = customer_reports['面談者'].dropna().unique().tolist()
         
         # Remove empty strings and sort
