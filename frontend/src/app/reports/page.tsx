@@ -450,7 +450,7 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
         });
     }, [selectedFile]);
 
-    // Handle customer name change with keyword search across all fields
+    // Handle customer name change with keyword search across all fields including kana
     const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setFormData(prev => ({
@@ -460,16 +460,26 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
 
         if (value.trim()) {
             const searchTerm = value.toLowerCase();
+            // Convert hiragana to katakana for kana search
+            const katakanaSearchTerm = searchTerm.replace(/[\u3041-\u3096]/g, (match) => {
+                const chr = match.charCodeAt(0) + 0x60;
+                return String.fromCharCode(chr);
+            });
+
             const filtered = customers.filter(c => {
-                return Object.values(c).some(val => {
-                    if (typeof val === 'string') {
-                        return val.toLowerCase().includes(searchTerm);
-                    }
-                    if (typeof val === 'number') {
-                        return String(val).includes(searchTerm);
-                    }
-                    return false;
-                });
+                // Search in customer name
+                if (c.得意先名 && c.得意先名.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                // Search in customer code
+                if (c.得意先CD && String(c.得意先CD).includes(searchTerm)) {
+                    return true;
+                }
+                // Search in kana (フリガナ)
+                if (c.フリガナ && c.フリガナ.toLowerCase().includes(katakanaSearchTerm)) {
+                    return true;
+                }
+                return false;
             }).slice(0, 20);
             setFilteredCustomers(filtered);
             setShowSuggestions(filtered.length > 0);

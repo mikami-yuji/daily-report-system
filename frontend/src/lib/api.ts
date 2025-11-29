@@ -79,6 +79,7 @@ export const uploadFile = async (file: File) => {
 export interface Customer {
     得意先CD: string;
     得意先名: string;
+    フリガナ: string;
     エリア: string;
     重点顧客: string;
     ランク: string;
@@ -91,9 +92,10 @@ export const getCustomers = async (filename?: string): Promise<Customer[]> => {
     return response.data;
 };
 
-export const getInterviewers = async (customerCd: string, filename?: string): Promise<string[]> => {
-    const params = filename ? { filename } : {};
-    const response = await axios.get(`${API_URL}/interviewers/${customerCd}`, { params });
-    return response.data.interviewers;
+export const getInterviewers = async (customerCode: string, filename?: string): Promise<string[]> => {
+    const params: any = { customer_code: customerCode };
+    if (filename) params.filename = filename;
+    const response = await axios.get(`${API_URL}/interviewers`, { params });
+    return response.data;
 };
 

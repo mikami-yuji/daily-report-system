@@ -105,6 +105,37 @@ def get_customers(filename: str = DEFAULT_EXCEL_FILE):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/interviewers")
+def get_interviewers(customer_code: str, filename: str = DEFAULT_EXCEL_FILE):
+    """Get list of interviewers for a specific customer"""
+    excel_file = os.path.join(EXCEL_DIR, filename)
+    if not os.path.exists(excel_file):
+        raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found")
+    
+    try:
+        # Read the '営業日報' sheet
+        df = pd.read_excel(excel_file, sheet_name='営業日報', header=0)
+        
+        # Clean up column names
+        df.columns = [str(col).replace('\n', '').strip() for col in df.columns]
+        
+        # Rename specific columns to match frontend expectations
+        df = df.rename(columns={
+            '得意先CD.': '得意先CD',
+        })
+        
+        # Filter by customer code
+        customer_reports = df[df['得意先CD'] == customer_code]
+        
+        # Get unique interviewers, excluding NaN and '-'
+        interviewers = customer_reports['面談者'].dropna().unique().tolist()
+        interviewers = [i for i in interviewers if i and str(i).strip() not in ['-', 'nan', '']]
+        
+        return interviewers
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/reports")
 def get_reports(filename: str = DEFAULT_EXCEL_FILE):
     excel_file = os.path.join(EXCEL_DIR, filename)
