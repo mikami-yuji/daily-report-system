@@ -235,7 +235,7 @@ export default function CustomerDetailPage() {
                     <div className="text-center px-4 py-3 bg-red-50 rounded border border-red-200">
                         <p className="text-xs text-red-700 mb-1">クレーム</p>
                         <p className="text-2xl font-semibold text-red-600">
-                            {reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length}
+                            {reports.filter(r => (r.行動内容 && r.行動内容.includes('クレーム')) || (r.商談内容 && String(r.商談内容).includes('クレーム'))).length}
                         </p>
                     </div>
                     <div className="text-center px-4 py-3 bg-orange-50 rounded border border-orange-200">
@@ -295,7 +295,7 @@ export default function CustomerDetailPage() {
                         <AlertTriangle size={18} />
                         クレーム対応
                         <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs ml-1">
-                            {reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length}
+                            {reports.filter(r => (r.行動内容 && r.行動内容.includes('クレーム')) || (r.商談内容 && String(r.商談内容).includes('クレーム'))).length}
                         </span>
                     </button>
                 </nav>
@@ -485,13 +485,13 @@ export default function CustomerDetailPage() {
 
                 {activeTab === 'complaints' && (
                     <div className="space-y-4">
-                        {reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length === 0 ? (
+                        {reports.filter(r => (r.行動内容 && r.行動内容.includes('クレーム')) || (r.商談内容 && String(r.商談内容).includes('クレーム'))).length === 0 ? (
                             <div className="text-center py-12 text-sf-text-weak bg-white rounded border border-sf-border">
                                 クレーム対応履歴はありません
                             </div>
                         ) : (
                             reports
-                                .filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）'))
+                                .filter(r => (r.行動内容 && r.行動内容.includes('クレーム')) || (r.商談内容 && String(r.商談内容).includes('クレーム')))
                                 .map((report, idx) => (
                                     <div
                                         key={idx}
@@ -501,7 +501,7 @@ export default function CustomerDetailPage() {
                                             <div className="bg-orange-100 p-1.5 rounded-full border border-orange-200 z-10">
                                                 <AlertTriangle size={16} className="text-orange-600" />
                                             </div>
-                                            {idx !== reports.filter(r => r.行動内容 && r.行動内容.includes('訪問（クレーム）')).length - 1 && (
+                                            {idx !== reports.filter(r => (r.行動内容 && r.行動内容.includes('クレーム')) || (r.商談内容 && String(r.商談内容).includes('クレーム'))).length - 1 && (
                                                 <div className="w-px bg-gray-200 h-full absolute top-8"></div>
                                             )}
                                         </div>
@@ -510,7 +510,7 @@ export default function CustomerDetailPage() {
                                             <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-sf-text">{report.日付}</span>
                                                 <span className="text-sm text-orange-700 bg-orange-100 px-2 py-0.5 rounded font-medium">
-                                                    訪問（クレーム）
+                                                    {report.行動内容 || '-'}
                                                 </span>
                                             </div>
                                             {report.面談者 && (

@@ -818,13 +818,23 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-sf-text mb-1">デザイン進捗状況</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             name="デザイン進捗状況"
                                             value={formData.デザイン進捗状況}
                                             onChange={handleChange}
                                             className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
-                                        />
+                                        >
+                                            <option value="">選択してください</option>
+                                            <option value="-">-</option>
+                                            <option value="新規">新規</option>
+                                            <option value="50％未満">50％未満</option>
+                                            <option value="80％未満">80％未満</option>
+                                            <option value="80％以上">80％以上</option>
+                                            <option value="出稿">出稿</option>
+                                            <option value="不採用（コンペ負け）">不採用（コンペ負け）</option>
+                                            <option value="不採用（企画倒れ）">不採用（企画倒れ）</option>
+                                            <option value="保留">保留</option>
+                                        </select>
                                     </div>
                                 </div>
                             )}

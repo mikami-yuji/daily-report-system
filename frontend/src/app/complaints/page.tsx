@@ -13,10 +13,10 @@ export default function ComplaintsPage() {
 
     useEffect(() => {
         getReports().then(data => {
-            // 訪問（クレーム）のレポートのみを抽出
+            // クレーム関連のレポートを抽出（行動内容または商談内容に「クレーム」を含む）
             const complaintReports = data.filter(r =>
-                r.行動内容 &&
-                String(r.行動内容).includes('訪問（クレーム）')
+                (r.行動内容 && String(r.行動内容).includes('クレーム')) ||
+                (r.商談内容 && String(r.商談内容).includes('クレーム'))
             );
 
             // 日付の降順（新しい順）にソート
@@ -122,7 +122,7 @@ export default function ComplaintsPage() {
                                     <div className="flex items-center gap-2">
                                         <span className="font-semibold text-sf-text">{report.日付}</span>
                                         <span className="text-sm text-orange-700 bg-orange-100 px-2 py-0.5 rounded font-medium">
-                                            訪問（クレーム）
+                                            {report.行動内容 || '-'}
                                         </span>
                                     </div>
                                     {report.面談者 && (

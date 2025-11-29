@@ -201,6 +201,9 @@ def get_reports(filename: str = DEFAULT_EXCEL_FILE):
                 if isinstance(value, float):
                     if math.isnan(value) or math.isinf(value):
                         cleaned_record[key] = None
+                    # Convert customer code to string without decimal
+                    elif key == '得意先CD' and not math.isnan(value):
+                        cleaned_record[key] = str(int(value))
                     else:
                         cleaned_record[key] = value
                 elif value == '':
