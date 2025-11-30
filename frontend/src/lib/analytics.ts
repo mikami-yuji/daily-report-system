@@ -5,12 +5,16 @@ export interface AnalyticsData {
         totalVisits: number;
         totalProposals: number;
         activeProjects: number;
-        complaints: number;
+        completedDesigns: number;
+        phoneContacts: number;
+        emailContacts: number;
     };
     trends: {
         date: string;
         visits: number;
         proposals: number;
+        phone: number;
+        email: number;
     }[];
     byArea: {
         area: string;
@@ -51,28 +55,50 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
     // Calculate KPIs
     const totalVisits = filteredReports.length;
     const totalProposals = filteredReports.filter(r => r.デザイン提案有無 === 'あり').length;
+
+    // Active projects: デザイン進捗状況 that are not 出稿 or 不採用
     const activeProjects = filteredReports.filter(r => {
         if (!r.デザイン進捗状況) return false;
         const status = String(r.デザイン進捗状況);
         return !['出稿', '不採用（コンペ負け）', '不採用（企画倒れ）'].some(s => status.includes(s));
     }).length;
-    const complaints = filteredReports.filter(r => {
-        const content = String(r.商談内容 || '');
+
+    // Completed designs: 出稿 status means design is finalized and published
+    const completedDesigns = filteredReports.filter(r => {
+        if (!r.デザイン進捗状況) return false;
+        const status = String(r.デザイン進捗状況);
+        return status.includes('出稿');
+    }).length;
+
+    // Phone and email contacts
+    const phoneContacts = filteredReports.filter(r => {
         const action = String(r.行動内容 || '');
-        return content.includes('クレーム') || action.includes('クレーム');
+        return action.includes('電話');
+    }).length;
+
+    const emailContacts = filteredReports.filter(r => {
+        const action = String(r.行動内容 || '');
+        return action.includes('メール');
     }).length;
 
     // Trends by date
-    const trendMap = new Map<string, { visits: number; proposals: number }>();
+    const trendMap = new Map<string, { visits: number; proposals: number; phone: number; email: number }>();
     filteredReports.forEach(report => {
         const date = report.日付;
+        const action = String(report.行動内容 || '');
         if (!trendMap.has(date)) {
-            trendMap.set(date, { visits: 0, proposals: 0 });
+            trendMap.set(date, { visits: 0, proposals: 0, phone: 0, email: 0 });
         }
         const trend = trendMap.get(date)!;
         trend.visits++;
         if (report.デザイン提案有無 === 'あり') {
             trend.proposals++;
+        }
+        if (action.includes('電話')) {
+            trend.phone++;
+        }
+        if (action.includes('メール')) {
+            trend.email++;
         }
     });
     const trends = Array.from(trendMap.entries())
@@ -150,7 +176,9 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
             totalVisits,
             totalProposals,
             activeProjects,
-            complaints
+            completedDesigns,
+            phoneContacts,
+            emailContacts
         },
         trends,
         byArea,

@@ -24,7 +24,7 @@ export function FileProvider({ children }: { children: ReactNode }) {
       setIsLoadingFiles(true);
       const data = await getFiles();
       setFiles(data.files);
-      
+
       // まだファイルが選択されていない場合のみ、デフォルトを設定
       // これにより、ページ遷移しても選択状態が維持される
       if (!selectedFile && data.default) {
@@ -41,8 +41,20 @@ export function FileProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Load from local storage on mount
+    const savedFile = localStorage.getItem('selectedFile');
+    if (savedFile) {
+      setSelectedFile(savedFile);
+    }
     refreshFiles();
   }, []);
+
+  useEffect(() => {
+    // Save to local storage whenever selectedFile changes
+    if (selectedFile) {
+      localStorage.setItem('selectedFile', selectedFile);
+    }
+  }, [selectedFile]);
 
   return (
     <FileContext.Provider value={{ selectedFile, setSelectedFile, files, setFiles, isLoadingFiles, refreshFiles }}>
