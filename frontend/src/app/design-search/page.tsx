@@ -50,6 +50,7 @@ export default function DesignSearchPage() {
                 .map(([code, name]) => ({ code, name }))
                 .sort((a, b) => a.code.localeCompare(b.code));
 
+            setDesignRequests(requests);
             setCustomers(customerList);
             setLoading(false);
         }).catch(err => {
@@ -83,7 +84,7 @@ export default function DesignSearchPage() {
             }
         });
 
-        // 各デザイン依頼の日報を日付順にソート
+        // 各デザイン依頼の日報を日付順にソート（昇順）
         const requests = Array.from(designMap.values()).map(req => ({
             ...req,
             requests: req.requests.sort((a, b) => {
@@ -93,16 +94,25 @@ export default function DesignSearchPage() {
             })
         }));
 
-        // デザインNo.の降順でソート
-        requests.sort((a, b) => b.designNo - a.designNo);
+        // 最終活動日（最新の日付）で降順にソートし、同日ならデザインNo.で降順
+        requests.sort((a, b) => {
+            const aLast = a.requests[a.requests.length - 1];
+            const bLast = b.requests[b.requests.length - 1];
+            const aDate = aLast?.日付 || '';
+            const bDate = bLast?.日付 || '';
 
-        setDesignRequests(requests);
-        setFilteredRequests(requests);
+            // 日付の降順（新しい順）
+            const dateCmp = bDate.localeCompare(aDate);
+            if (dateCmp !== 0) return dateCmp;
+
+            // 日付が同じ場合はデザインNo.の降順
+            return b.designNo - a.designNo;
+        });
 
         return requests;
     };
 
-    // 得意先でフィルターされた場合の種別リスト
+    // フィルターされた状態での種別リスト
     const availableTypes = useMemo(() => {
         let requestsToCheck = designRequests;
 

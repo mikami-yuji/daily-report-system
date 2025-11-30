@@ -204,7 +204,7 @@ export default function AnalyticsPage() {
                                             innerRadius={60}
                                             outerRadius={100}
                                             paddingAngle={5}
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                                         >
                                             {analytics.byArea.filter(item => item.area !== '未設定').map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
