@@ -111,7 +111,8 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         return action.includes('訪問');
     }).length;
 
-    const totalProposals = filteredReports.filter(r => r.デザイン提案有無 === 'あり').length;
+    // Count total design requests (records with デザイン依頼No.)
+    const totalProposals = filteredReports.filter(r => r['デザイン依頼No.'] && String(r['デザイン依頼No.']).trim() !== '').length;
 
     // Active projects: デザイン進捗状況 that are not 出稿 or 不採用
     const activeProjects = filteredReports.filter(r => {
