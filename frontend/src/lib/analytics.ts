@@ -45,20 +45,72 @@ export interface AnalyticsData {
     }[];
 }
 
+export function parseDate(dateStr: string | undefined): Date | null {
+    if (!dateStr) return null;
+
+    // Handle YY/MM/DD format
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+        let year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+        const day = parseInt(parts[2], 10);
+
+        // Adjust 2-digit year to 20YY
+        if (year < 100) {
+            year += 2000;
+        }
+
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+
+    // Fallback to standard parsing
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? null : date;
+}
+
 export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?: Date): AnalyticsData {
+    // Debug logging
+    console.log('aggregateAnalytics called with:', {
+        reportsCount: reports.length,
+        startDate,
+        endDate
+    });
+
     // Filter by date range if provided
     let filteredReports = reports;
     if (startDate || endDate) {
         filteredReports = reports.filter(report => {
-            const reportDate = new Date(report.日付);
-            if (startDate && reportDate < startDate) return false;
-            if (endDate && reportDate > endDate) return false;
+            const reportDate = parseDate(report.日付);
+            if (!reportDate) return false;
+
+            // Reset time part for comparison
+            reportDate.setHours(0, 0, 0, 0);
+
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                if (reportDate < start) return false;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                if (reportDate > end) return false;
+            }
             return true;
         });
     }
+    console.log('Filtered reports count:', filteredReports.length);
 
     // Calculate KPIs
-    const totalVisits = filteredReports.length;
+    // Fix: totalVisits should only count records where action includes '訪問'
+    const totalVisits = filteredReports.filter(r => {
+        const action = String(r.行動内容 || '');
+        return action.includes('訪問');
+    }).length;
+
     const totalProposals = filteredReports.filter(r => r.デザイン提案有無 === 'あり').length;
 
     // Active projects: デザイン進捗状況 that are not 出稿 or 不採用
@@ -101,15 +153,26 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
     // Trends by date
     const trendMap = new Map<string, { visits: number; proposals: number; completed: number; rejected: number; phone: number; email: number }>();
     filteredReports.forEach(report => {
-        const date = report.日付;
+        // Normalize date string for grouping
+        const reportDate = parseDate(report.日付);
+        if (!reportDate) return;
+
+        // Format as YYYY/MM/DD for consistent map keys
+        const dateKey = `${reportDate.getFullYear()}/${String(reportDate.getMonth() + 1).padStart(2, '0')}/${String(reportDate.getDate()).padStart(2, '0')}`;
+
         const action = String(report.行動内容 || '');
         const status = String(report.デザイン進捗状況 || '');
 
-        if (!trendMap.has(date)) {
-            trendMap.set(date, { visits: 0, proposals: 0, completed: 0, rejected: 0, phone: 0, email: 0 });
+        if (!trendMap.has(dateKey)) {
+            trendMap.set(dateKey, { visits: 0, proposals: 0, completed: 0, rejected: 0, phone: 0, email: 0 });
         }
-        const trend = trendMap.get(date)!;
-        trend.visits++;
+        const trend = trendMap.get(dateKey)!;
+
+        // Only increment visits if action includes '訪問'
+        if (action.includes('訪問')) {
+            trend.visits++;
+        }
+
         if (report.デザイン提案有無 === 'あり') {
             trend.proposals++;
         }
