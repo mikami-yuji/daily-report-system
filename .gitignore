@@ -46,3 +46,7 @@ Thumbs.db
 test_output.txt
 analyze_excel.py
 test_python.py
+
+# User-specific configuration
+backend/config.json
+

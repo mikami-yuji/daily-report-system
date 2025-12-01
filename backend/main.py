@@ -6,6 +6,7 @@ import openpyxl
 from datetime import datetime
 import os
 import shutil
+import json
 
 app = FastAPI()
 
@@ -18,7 +19,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-EXCEL_DIR = "../"
+
+# Load configuration
+def load_config():
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                return config.get('excel_dir', '../')
+        except Exception as e:
+            print(f"Warning: Failed to load config.json: {e}")
+            return '../'
+    return '../'
+
+EXCEL_DIR = load_config()
 DEFAULT_EXCEL_FILE = "daily_report_template.xlsm"
 
 class ReportInput(BaseModel):
