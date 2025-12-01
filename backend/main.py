@@ -22,6 +22,8 @@ EXCEL_DIR = "../"
 DEFAULT_EXCEL_FILE = "daily_report_template.xlsm"
 
 class ReportInput(BaseModel):
+    model_config = {"populate_by_name": True}
+    
     日付: str
     行動内容: str
     エリア: str = ""
