@@ -364,18 +364,21 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         wb = openpyxl.load_workbook(excel_file, keep_vba=True)
         ws = wb['営業日報']
         
-        # Find the maximum management number by scanning all rows
+        # Find the maximum management number and its row by scanning all rows
         max_mgmt_num = 0
+        max_mgmt_row = 1  # Default to header row if no data found
         for row in range(2, ws.max_row + 1):  # Start from row 2 (skip header)
             mgmt_num = ws.cell(row=row, column=1).value
             if isinstance(mgmt_num, (int, float)) and not pd.isna(mgmt_num):
-                max_mgmt_num = max(max_mgmt_num, int(mgmt_num))
+                if int(mgmt_num) > max_mgmt_num:
+                    max_mgmt_num = int(mgmt_num)
+                    max_mgmt_row = row
         
         # Increment to get new management number
         new_mgmt_num = max_mgmt_num + 1
         
-        # Find the next empty row
-        next_row = ws.max_row + 1
+        # Insert at the row immediately after the last management number
+        next_row = max_mgmt_row + 1
         
         # Prepare the data to write
         # Adjust column indices based on actual Excel structure (251113_2026-_-_008.xlsm)
