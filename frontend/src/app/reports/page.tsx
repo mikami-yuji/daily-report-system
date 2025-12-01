@@ -526,7 +526,7 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
         setSubmitting(true);
 
         try {
-            const response = await fetch(`http://localhost:8000/reports?filename=${encodeURIComponent(selectedFile)}`, {
+            const response = await fetch(`/api/reports?filename=${encodeURIComponent(selectedFile)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -535,13 +535,15 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create report');
+                const errorData = await response.json();
+                console.error('Server error details:', errorData);
+                throw new Error(`Failed to create report: ${JSON.stringify(errorData)}`);
             }
 
             onSuccess();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating report:', error);
-            alert('日報の作成に失敗しました');
+            alert(`日報の作成に失敗しました: ${error.message}`);
         } finally {
             setSubmitting(false);
         }

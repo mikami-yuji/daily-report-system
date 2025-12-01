@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import pandas as pd
 import openpyxl
 from datetime import datetime
@@ -50,6 +50,13 @@ class ReportInput(BaseModel):
     岡本常務: str = ""
     中野次長: str = ""
     既読チェック: str = ""
+
+    @field_validator('得意先CD', '直送先CD', mode='before')
+    @classmethod
+    def convert_to_string(cls, v):
+        if v is None:
+            return ""
+        return str(v)
 
 @app.get("/")
 def read_root():
