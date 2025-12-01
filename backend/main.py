@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import pandas as pd
 import openpyxl
 from datetime import datetime
@@ -26,12 +26,21 @@ class ReportInput(BaseModel):
     行動内容: str
     エリア: str = ""
     得意先CD: str = ""
+    直送先CD: str = ""
     訪問先名: str
+    直送先名: str = ""
+    重点顧客: str = ""
+    ランク: str = ""
     面談者: str = ""
     滞在時間: str = ""
     商談内容: str = ""
     提案物: str = ""
     次回プラン: str = ""
+    デザイン提案有無: str = ""
+    デザイン種別: str = ""
+    デザイン名: str = ""
+    デザイン進捗状況: str = ""
+    デザイン依頼No: str = Field("", alias="デザイン依頼No.")
     上長コメント: str = ""
     コメント返信欄: str = ""
     上長: str = ""
@@ -351,9 +360,18 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         ws.cell(row=next_row, column=3, value=report.行動内容)  # 行動内容
         ws.cell(row=next_row, column=4, value=report.エリア)  # エリア
         ws.cell(row=next_row, column=5, value=report.得意先CD)  # 得意先CD.
+        ws.cell(row=next_row, column=6, value=report.直送先CD)  # 直送先CD.
         ws.cell(row=next_row, column=7, value=report.訪問先名)  # 訪問先名\n得意先名
+        ws.cell(row=next_row, column=8, value=report.直送先名)  # 直送先名
+        ws.cell(row=next_row, column=9, value=report.重点顧客)  # 重点顧客
+        ws.cell(row=next_row, column=10, value=report.ランク)  # ランク
         ws.cell(row=next_row, column=12, value=report.面談者)  # 面談者
         ws.cell(row=next_row, column=13, value=report.滞在時間)  # 滞在\n時間
+        ws.cell(row=next_row, column=14, value=report.デザイン提案有無)  # デザイン提案有無
+        ws.cell(row=next_row, column=15, value=report.デザイン種別)  # デザイン種別
+        ws.cell(row=next_row, column=16, value=report.デザイン名)  # デザイン名
+        ws.cell(row=next_row, column=17, value=report.デザイン進捗状況)  # デザイン進捗状況
+        ws.cell(row=next_row, column=18, value=report.デザイン依頼No)  # デザイン依頼No.
         ws.cell(row=next_row, column=19, value=report.商談内容)  # 商談内容 (Index 19)
         ws.cell(row=next_row, column=20, value=report.提案物)  # 提案物 (Index 20)
         ws.cell(row=next_row, column=21, value=report.次回プラン)  # 次回プラン (Index 21)
@@ -395,23 +413,6 @@ def update_report(management_number: float, report: ReportInput, filename: str =
         if not target_row:
             raise HTTPException(status_code=404, detail=f"Report with management number {management_number} not found")
         
-        # Update the data with correct column indices
-        ws.cell(row=target_row, column=2, value=report.日付)
-        ws.cell(row=target_row, column=3, value=report.行動内容)
-        ws.cell(row=target_row, column=4, value=report.エリア)
-        ws.cell(row=target_row, column=5, value=report.得意先CD)
-        ws.cell(row=target_row, column=7, value=report.訪問先名)
-        ws.cell(row=target_row, column=11, value=report.面談者)
-        ws.cell(row=target_row, column=12, value=report.滞在時間)
-        ws.cell(row=target_row, column=18, value=report.商談内容)
-        ws.cell(row=target_row, column=19, value=report.提案物)
-        ws.cell(row=target_row, column=20, value=report.次回プラン)
-        
-        # Comments and Approvals
-        ws.cell(row=target_row, column=22, value=report.上長コメント)
-        ws.cell(row=target_row, column=23, value=report.コメント返信欄)
-        ws.cell(row=target_row, column=24, value=report.上長)
-        ws.cell(row=target_row, column=25, value=report.山澄常務)
         ws.cell(row=target_row, column=26, value=report.岡本常務)
         ws.cell(row=target_row, column=27, value=report.中野次長)
         ws.cell(row=target_row, column=29, value=report.既読チェック)
