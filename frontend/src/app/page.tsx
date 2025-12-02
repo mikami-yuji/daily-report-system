@@ -191,8 +191,8 @@ export default function Home() {
             <TrendingUp className="text-sf-light-blue" size={20} />
             <h2 className="font-semibold text-lg text-sf-text">活動推移</h2>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div style={{ width: '100%', height: 256 }}>
+            <ResponsiveContainer width="100%" height={256}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
