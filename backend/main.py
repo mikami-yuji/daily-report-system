@@ -382,26 +382,53 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         
         # Prepare the data to write
         # Adjust column indices based on actual Excel structure (251113_2026-_-_008.xlsm)
-        ws.cell(row=next_row, column=1, value=new_mgmt_num)  # 管理番号
-        ws.cell(row=next_row, column=2, value=report.日付)  # 日付
-        ws.cell(row=next_row, column=3, value=report.行動内容)  # 行動内容
-        ws.cell(row=next_row, column=4, value=report.エリア)  # エリア
-        ws.cell(row=next_row, column=5, value=report.得意先CD)  # 得意先CD.
-        ws.cell(row=next_row, column=6, value=report.直送先CD)  # 直送先CD.
-        ws.cell(row=next_row, column=7, value=report.訪問先名)  # 訪問先名\n得意先名
-        ws.cell(row=next_row, column=8, value=report.直送先名)  # 直送先名
-        ws.cell(row=next_row, column=9, value=report.重点顧客)  # 重点顧客
-        ws.cell(row=next_row, column=10, value=report.ランク)  # ランク
-        ws.cell(row=next_row, column=12, value=report.面談者)  # 面談者
-        ws.cell(row=next_row, column=13, value=report.滞在時間)  # 滞在\n時間
-        ws.cell(row=next_row, column=14, value=report.デザイン提案有無)  # デザイン提案有無
-        ws.cell(row=next_row, column=15, value=report.デザイン種別)  # デザイン種別
-        ws.cell(row=next_row, column=16, value=report.デザイン名)  # デザイン名
-        ws.cell(row=next_row, column=17, value=report.デザイン進捗状況)  # デザイン進捗状況
-        ws.cell(row=next_row, column=18, value=report.デザイン依頼No)  # デザイン依頼No.
-        ws.cell(row=next_row, column=19, value=report.商談内容)  # 商談内容 (Index 19)
-        ws.cell(row=next_row, column=20, value=report.提案物)  # 提案物 (Index 20)
-        ws.cell(row=next_row, column=21, value=report.次回プラン)  # 次回プラン (Index 21)
+        # Also copy styles from the previous row (max_mgmt_row) to the new row (next_row)
+        
+        from copy import copy
+
+        def copy_style(source_cell, target_cell):
+            if source_cell.has_style:
+                target_cell.font = copy(source_cell.font)
+                target_cell.border = copy(source_cell.border)
+                target_cell.fill = copy(source_cell.fill)
+                target_cell.number_format = copy(source_cell.number_format)
+                target_cell.protection = copy(source_cell.protection)
+                target_cell.alignment = copy(source_cell.alignment)
+
+        # Define the columns to write to and their values
+        columns_to_write = {
+            1: new_mgmt_num, # 管理番号
+            2: report.日付, # 日付
+            3: report.行動内容, # 行動内容
+            4: report.エリア, # エリア
+            5: report.得意先CD, # 得意先CD.
+            6: report.直送先CD, # 直送先CD.
+            7: report.訪問先名, # 訪問先名\n得意先名
+            8: report.直送先名, # 直送先名
+            9: report.重点顧客, # 重点顧客
+            10: report.ランク, # ランク
+            12: report.面談者, # 面談者
+            13: report.滞在時間, # 滞在\n時間
+            14: report.デザイン提案有無, # デザイン提案有無
+            15: report.デザイン種別, # デザイン種別
+            16: report.デザイン名, # デザイン名
+            17: report.デザイン進捗状況, # デザイン進捗状況
+            18: report.デザイン依頼No, # デザイン依頼No.
+            19: report.商談内容, # 商談内容 (Index 19)
+            20: report.提案物, # 提案物 (Index 20)
+            21: report.次回プラン # 次回プラン (Index 21)
+        }
+
+        for col_idx, value in columns_to_write.items():
+            target_cell = ws.cell(row=next_row, column=col_idx)
+            target_cell.value = value
+            
+            # Copy style from the row above (max_mgmt_row)
+            # Ensure we are copying from a valid row
+            if max_mgmt_row >= 2:
+                source_cell = ws.cell(row=max_mgmt_row, column=col_idx)
+                copy_style(source_cell, target_cell)
+
         
         # Save the workbook
         wb.save(excel_file)
