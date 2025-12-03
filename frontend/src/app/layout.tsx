@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" suppressHydrationWarning>
-      <body className="antialiased bg-sf-bg text-sf-text h-screen overflow-hidden">
+      <body className="antialiased bg-sf-bg text-sf-text h-screen overflow-hidden" suppressHydrationWarning>
         <Toaster position="top-right" />
         <FileProvider>
           <AppLayout>
