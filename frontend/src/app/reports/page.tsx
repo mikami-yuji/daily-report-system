@@ -6,6 +6,19 @@ import { useFile } from '@/context/FileContext';
 import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table, Edit, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// Helper to sanitize report object for API updates
+const sanitizeReport = (report: any) => {
+    const sanitized: any = {};
+    for (const key in report) {
+        if (report[key] === null || report[key] === undefined) {
+            sanitized[key] = '';
+        } else {
+            sanitized[key] = report[key];
+        }
+    }
+    return sanitized;
+};
+
 export default function ReportsPage() {
     const { files, selectedFile, setSelectedFile } = useFile();
     const [reports, setReports] = useState<Report[]>([]);
@@ -330,6 +343,7 @@ export default function ReportsPage() {
                         setSelectedReportIndex(null); // 詳細モーダルを閉じる
                         setShowEditReportModal(true);
                     }}
+                    onUpdate={fetchData}
                 />
             )}
         </div>
@@ -887,11 +901,17 @@ function EditReportModal({ report, onClose, onSuccess, selectedFile }: EditRepor
             // We need to pass the management number to update the specific report
             const { 管理番号, ...rest } = report;
             await updateReport(report.管理番号, { ...rest, ...formData }, selectedFile);
-            toast.success('日報を更新しました');
+            toast.success('日報を更新しました', {
+                duration: 4000,
+                position: 'top-right',
+            });
             onSuccess();
         } catch (error) {
             console.error('Error updating report:', error);
-            toast.error('日報の更新に失敗しました');
+            toast.error('日報の更新に失敗しました', {
+                duration: 4000,
+                position: 'top-right',
+            });
         } finally {
             setSubmitting(false);
         }
@@ -1093,9 +1113,10 @@ interface ReportDetailModalProps {
     hasNext: boolean;
     hasPrev: boolean;
     onEdit: () => void;
+    onUpdate?: () => void;
 }
 
-function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, onEdit }: ReportDetailModalProps) {
+function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, onEdit, onUpdate }: ReportDetailModalProps) {
     const { selectedFile } = useFile();
     const [approvals, setApprovals] = useState({
         上長: report.上長 || '',
@@ -1132,11 +1153,22 @@ function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, 
 
         setSaving(true);
         try {
-            await updateReport(report.管理番号, { [field]: newValue }, selectedFile);
+            // Prepare full report
+            const { 管理番号, ...rest } = report;
+            const fullReport = {
+                ...rest,
+                ...approvals, // Use current approvals state
+                [field]: newValue,
+                ...comments // Also include current comments
+            };
+            const sanitized = sanitizeReport(fullReport);
+            await updateReport(report.管理番号, sanitized, selectedFile);
+            if (onUpdate) onUpdate();
         } catch (error) {
             console.error('Failed to update approval:', error);
             // Revert on error
             setApprovals(prev => ({ ...prev, [field]: approvals[field] }));
+            toast.error('承認ステータスの更新に失敗しました');
         } finally {
             setSaving(false);
         }
@@ -1147,9 +1179,21 @@ function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, 
 
         setSaving(true);
         try {
-            await updateReport(report.管理番号, { [field]: comments[field] }, selectedFile);
+            // Prepare full report
+            const { 管理番号, ...rest } = report;
+            const fullReport = {
+                ...rest,
+                ...comments, // Use current comments state
+                [field]: comments[field],
+                ...approvals // Also include current approvals
+            };
+            const sanitized = sanitizeReport(fullReport);
+            await updateReport(report.管理番号, sanitized, selectedFile);
+            toast.success('コメントを保存しました');
+            if (onUpdate) onUpdate();
         } catch (error) {
             console.error('Failed to update comment:', error);
+            toast.error('コメントの保存に失敗しました');
         } finally {
             setSaving(false);
         }

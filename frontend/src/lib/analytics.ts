@@ -48,12 +48,17 @@ export interface AnalyticsData {
 export function parseDate(dateStr: string | undefined): Date | null {
     if (!dateStr) return null;
 
-    // Handle YY/MM/DD format
-    const parts = dateStr.split('/');
+    // Normalize separators: replace - and . with /
+    const normalized = dateStr.replace(/[-.]/g, '/');
+
+    // Handle YYYY/MM/DD or YY/MM/DD
+    const parts = normalized.split('/');
     if (parts.length === 3) {
         let year = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
         const day = parseInt(parts[2], 10);
+
+        if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
 
         // Adjust 2-digit year to 20YY
         if (year < 100) {
@@ -66,19 +71,13 @@ export function parseDate(dateStr: string | undefined): Date | null {
         }
     }
 
-    // Fallback to standard parsing
+    // Fallback to standard parsing (try to force local time if possible, but standard new Date(str) is inconsistent)
+    // With normalization above, most dates should be caught by the split logic.
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? null : date;
 }
 
 export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?: Date): AnalyticsData {
-    // Debug logging
-    console.log('aggregateAnalytics called with:', {
-        reportsCount: reports.length,
-        startDate,
-        endDate
-    });
-
     // Filter by date range if provided
     let filteredReports = reports;
     if (startDate || endDate) {
@@ -102,7 +101,6 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
             return true;
         });
     }
-    console.log('Filtered reports count:', filteredReports.length);
 
     // Calculate KPIs
     // Fix: totalVisits should only count records where action includes '訪問'
