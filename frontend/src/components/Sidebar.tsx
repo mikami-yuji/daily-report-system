@@ -11,7 +11,8 @@ import {
     Package,
     AlertCircle,
     AlertTriangle,
-    Calendar
+    Calendar,
+    Building2
 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -27,6 +28,7 @@ export default function Sidebar() {
         { name: '得意先一覧', href: '/customers', icon: Users },
         { name: 'カレンダー', href: '/calendar', icon: Calendar },
         { name: 'デザイン検索', href: '/design-search', icon: Package },
+        { name: '量販店調査検索', href: '/mass-retailer-survey', icon: Building2 },
         { name: '競合他社情報', href: '/competitor-info', icon: AlertCircle },
         { name: 'クレーム対応', href: '/complaints', icon: AlertTriangle },
         { name: '分析・レポート', href: '/analytics', icon: BarChart2 },
