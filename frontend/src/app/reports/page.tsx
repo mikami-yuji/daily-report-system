@@ -5,6 +5,7 @@ import { getReports, Report, getCustomers, Customer, updateReport, deleteReport,
 import { useFile } from '@/context/FileContext';
 import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table, Edit, ChevronLeft, ChevronRight, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 // Helper to sanitize report object for API updates
 const sanitizeReport = (report: any) => {
@@ -1205,11 +1206,13 @@ function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, 
         }
     };
 
-    const handleDelete = async () => {
-        if (!confirm('この日報を削除してもよろしいですか？\n\n※この操作は取り消せません。')) {
-            return;
-        }
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+    const handleDeleteClick = () => {
+        setShowDeleteConfirm(true);
+    };
+
+    const executeDelete = async () => {
         setSaving(true);
         try {
             await deleteReport(report.管理番号, selectedFile);
@@ -1457,7 +1460,7 @@ function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, 
                         前の日報
                     </button>
                     <button
-                        onClick={handleDelete}
+                        onClick={handleDeleteClick}
                         disabled={saving}
                         className="flex items-center gap-2 px-4 py-2 rounded transition-colors bg-red-50 border border-red-200 hover:bg-red-500 hover:text-white hover:border-transparent text-red-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -1477,6 +1480,16 @@ function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, 
                     </button>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={executeDelete}
+                title="日報の削除"
+                message="この日報を削除してもよろしいですか？\nこの操作は取り消せません。"
+                confirmText="削除する"
+                isDangerous={true}
+            />
         </div>
     );
 }
