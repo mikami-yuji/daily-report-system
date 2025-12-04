@@ -27,11 +27,11 @@ def load_config():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                return config.get('excel_dir', '../')
+                return config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
-            return '../'
-    return '../'
+            return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
+    return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
 
 EXCEL_DIR = load_config()
 DEFAULT_EXCEL_FILE = "daily_report_template.xlsm"
@@ -105,6 +105,7 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
     Get dataframe from cache or read from Excel file if modified or not in cache.
     """
     excel_file = os.path.join(EXCEL_DIR, filename)
+    print(f"DEBUG: Accessing file: {excel_file}")
     if not os.path.exists(excel_file):
         raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found")
     
@@ -258,6 +259,7 @@ def get_report_by_id(management_number: int, filename: str = DEFAULT_EXCEL_FILE)
 @app.get("/reports")
 def get_reports(filename: str = DEFAULT_EXCEL_FILE):
     try:
+        print(f"DEBUG: Fetching reports for {filename} from {EXCEL_DIR}")
         # Get dataframe from cache
         df = get_cached_dataframe(filename, '営業日報')
         
@@ -420,16 +422,23 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         max_mgmt_row = 1  # Default to header row if no data found
         for row in range(2, ws.max_row + 1):  # Start from row 2 (skip header)
             mgmt_num = ws.cell(row=row, column=1).value
-            if isinstance(mgmt_num, (int, float)) and not pd.isna(mgmt_num):
-                if int(mgmt_num) > max_mgmt_num:
-                    max_mgmt_num = int(mgmt_num)
-                    max_mgmt_row = row
+            try:
+                if mgmt_num is not None:
+                    val = int(mgmt_num)
+                    if val > max_mgmt_num:
+                        max_mgmt_num = val
+                        max_mgmt_row = row
+            except (ValueError, TypeError):
+                continue
         
+        print(f"DEBUG: Max Mgmt Num: {max_mgmt_num}, Max Mgmt Row: {max_mgmt_row}")
+
         # Increment to get new management number
         new_mgmt_num = max_mgmt_num + 1
         
         # Insert at the row immediately after the last management number
         next_row = max_mgmt_row + 1
+        print(f"DEBUG: Writing to Row: {next_row}")
         
         # Prepare the data to write
         # Adjust column indices based on actual Excel structure (251113_2026-_-_008.xlsm)
