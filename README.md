@@ -100,6 +100,42 @@ daily-report-system/
     - [x] 活動履歴の紐付け表示
 - [x] エクセルファイルのWebアップロード機能
 
+## 🔧 トラブルシューティング
+
+### API接続エラー (500 Internal Server Error)
+
+**症状**: フロントエンドで「Request failed with status code 500」エラーが発生
+
+**原因**: `next.config.ts`のAPIプロキシ設定でポート番号が間違っている可能性があります。
+
+**解決方法**:
+1. `frontend/next.config.ts`を開く
+2. `destination`のポート番号が`8000`になっているか確認
+   ```typescript
+   destination: 'http://127.0.0.1:8000/:path*',  // 正しい
+   ```
+3. フロントエンドサーバーを再起動
+
+### ページのチカチカ問題
+
+**症状**: 日報一覧ページで「読み込み中...」と表示が交互に繰り返される
+
+**原因**: `useEffect`の依存配列に`cachedReports`や`cachedCustomers`が含まれていると、無限ループが発生します。
+
+**解決方法**: これは既に修正済みです。最新版を使用してください。
+
+### バックエンドが起動しない
+
+**症状**: `py main.py`実行時にエラーが発生
+
+**解決方法**:
+1. Python 3.13がインストールされているか確認
+2. 依存パッケージをインストール:
+   ```powershell
+   cd backend
+   pip install -r requirements.txt
+   ```
+
 ## 📝 ライセンス
 
 MIT License
