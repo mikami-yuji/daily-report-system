@@ -6,6 +6,7 @@ import { useFile } from '@/context/FileContext';
 import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table, Edit, ChevronLeft, ChevronRight, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useOffline } from '@/context/OfflineContext';
 
 // Helper to sanitize report object for API updates
 const sanitizeReport = (report: any) => {
@@ -542,11 +543,19 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
         }
     };
 
+    const { isOnline, saveOfflineReport } = useOffline();
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
 
         try {
+            if (!isOnline) {
+                saveOfflineReport(formData, selectedFile);
+                onSuccess();
+                return;
+            }
+
             const response = await fetch(`/api/reports?filename=${encodeURIComponent(selectedFile)}`, {
                 method: 'POST',
                 headers: {

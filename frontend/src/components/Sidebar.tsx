@@ -17,6 +17,47 @@ import {
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useOffline } from '@/context/OfflineContext';
+import { CloudOff, RefreshCw, CheckCircle } from 'lucide-react';
+
+function SyncStatus({ collapsed }: { collapsed: boolean }) {
+    const { isOnline, offlineReports, syncReports } = useOffline();
+    const pendingCount = offlineReports.filter(r => r.status === 'pending' || r.status === 'error').length;
+    const syncingCount = offlineReports.filter(r => r.status === 'syncing').length;
+
+    if (pendingCount === 0 && syncingCount === 0 && isOnline) return null;
+
+    return (
+        <div className={`mb-2 p-2 rounded text-xs flex items-center gap-2 ${!isOnline ? 'bg-gray-100 text-gray-600' :
+                syncingCount > 0 ? 'bg-blue-50 text-blue-600' :
+                    'bg-yellow-50 text-yellow-600'
+            }`}>
+            {syncingCount > 0 ? (
+                <RefreshCw size={16} className="animate-spin" />
+            ) : !isOnline ? (
+                <CloudOff size={16} />
+            ) : (
+                <CheckCircle size={16} />
+            )}
+
+            {!collapsed && (
+                <div className="flex-1">
+                    {!isOnline ? (
+                        <span>オフライン ({pendingCount}件未送信)</span>
+                    ) : syncingCount > 0 ? (
+                        <span>同期中... ({syncingCount}件)</span>
+                    ) : (
+                        <button onClick={() => syncReports()} className="hover:underline text-left">
+                            {pendingCount}件の未送信データ
+                            <br />
+                            <span className="text-[10px] opacity-75">クリックして同期</span>
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
@@ -73,7 +114,8 @@ export default function Sidebar() {
 
             {/* Footer / User Info (Simplified) */}
             <div className="p-4 border-t border-sf-border">
-                <div className="flex items-center">
+                <SyncStatus collapsed={collapsed} />
+                <div className="flex items-center mt-4">
                     <div className="w-8 h-8 rounded-full bg-sf-light-blue flex items-center justify-center text-white font-bold text-xs">
                         MY
                     </div>

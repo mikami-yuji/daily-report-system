@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 import AppLayout from "@/components/AppLayout";
 import { FileProvider } from "@/context/FileContext";
+import { OfflineProvider } from "@/context/OfflineContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,9 +44,11 @@ export default function RootLayout({
       <body className="antialiased bg-sf-bg text-sf-text h-screen overflow-hidden" suppressHydrationWarning>
         <Toaster position="top-right" />
         <FileProvider>
-          <AppLayout>
-            {children}
-          </AppLayout>
+          <OfflineProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </OfflineProvider>
         </FileProvider>
       </body>
     </html>
