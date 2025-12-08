@@ -265,6 +265,7 @@ export default function CustomersPage() {
                             value={selectedArea}
                             onChange={(e) => setSelectedArea(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent appearance-none bg-white"
+                            aria-label="エリアで絞り込み"
                         >
                             <option value="">すべてのエリア</option>
                             {areas.map(area => (
@@ -279,6 +280,7 @@ export default function CustomersPage() {
                             value={selectedRank}
                             onChange={(e) => setSelectedRank(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent appearance-none bg-white"
+                            aria-label="ランクで絞り込み"
                         >
                             <option value="">すべてのランク</option>
                             {ranks.map(rank => (
@@ -361,7 +363,12 @@ export default function CustomersPage() {
                                         <tr className="border-b border-sf-border hover:bg-gray-50 transition-colors">
                                             <td className="px-4 py-3 text-center">
                                                 {customer.subItems && customer.subItems.length > 0 && (
-                                                    <button onClick={() => toggleRow(customer.id)} className="p-1 hover:bg-gray-200 rounded">
+                                                    <button
+                                                        onClick={() => toggleRow(customer.id)}
+                                                        className="p-1 hover:bg-gray-200 rounded"
+                                                        aria-label={expandedRows.has(customer.id) ? "直送先を折りたたむ" : "直送先を展開する"}
+                                                        title={expandedRows.has(customer.id) ? "直送先を折りたたむ" : "直送先を展開する"}
+                                                    >
                                                         {expandedRows.has(customer.id) ? (
                                                             <ChevronDown size={16} className="text-gray-500" />
                                                         ) : (
