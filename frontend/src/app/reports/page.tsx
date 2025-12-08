@@ -514,7 +514,7 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
 
         // Fetch interviewers for this customer
         if (customer.得意先CD) {
-            getInterviewers(customer.得意先CD, selectedFile).then(data => {
+            getInterviewers(customer.得意先CD, selectedFile, customer.得意先名, customer.直送先名).then(data => {
                 setInterviewers(data);
             }).catch(err => {
                 console.error('Failed to fetch interviewers:', err);

@@ -100,11 +100,16 @@ export const getCustomers = async (filename?: string): Promise<Customer[]> => {
     return response.data;
 };
 
-export const getInterviewers = async (customerCode: string, filename?: string): Promise<string[]> => {
-    const params: any = { customer_code: customerCode };
+export const getInterviewers = async (customerCode: string, filename?: string, customerName?: string, deliveryName?: string): Promise<string[]> => {
+    const params: any = {};
     if (filename) params.filename = filename;
-    const response = await axios.get(`${API_URL}/interviewers`, { params });
-    return response.data;
+    if (customerName) params.customer_name = customerName;
+    if (deliveryName) params.delivery_name = deliveryName;
+
+    // Use path parameter for customerCode to match backend
+    const response = await axios.get(`${API_URL}/interviewers/${encodeURIComponent(customerCode)}`, { params });
+    // Backend returns { customer_cd: ..., interviewers: [...] }
+    return response.data.interviewers;
 };
 
 export interface Design {

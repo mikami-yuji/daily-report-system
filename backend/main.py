@@ -314,8 +314,13 @@ def get_reports(filename: str = DEFAULT_EXCEL_FILE):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/interviewers/{customer_cd}")
-def get_interviewers(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
-    """Get list of interviewers for a specific customer"""
+def get_interviewers(
+    customer_cd: str, 
+    filename: str = DEFAULT_EXCEL_FILE,
+    customer_name: Optional[str] = None,
+    delivery_name: Optional[str] = None
+):
+    """Get list of interviewers for a specific customer with optional name filtering"""
     try:
         # Get dataframe from cache
         df = get_cached_dataframe(filename, '営業日報')
@@ -323,9 +328,12 @@ def get_interviewers(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
         # Clean up column names
         df.columns = [str(col).replace('\n', '') for col in df.columns]
         
-        # Rename specific columns
+        # Rename specific columns to standard names
         df = df.rename(columns={
             '得意先CD.': '得意先CD',
+            '直送先CD.': '直送先CD',
+            '訪問先名得意先名': '訪問先名', # Case where \n was removed
+            '訪問先名\n得意先名': '訪問先名', # Just in case
         })
         
         # Convert customer_cd to float for matching (Excel stores as float)
@@ -335,8 +343,58 @@ def get_interviewers(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
             # If conversion fails, try string matching
             customer_cd_float = customer_cd
         
-        # Filter by customer code and get unique interviewers
+        # Base filter: customer code
+        # Handle potential float/string mismatch by trying both if needed, but usually float is correct for number-like CDs
         customer_reports = df[df['得意先CD'] == customer_cd_float]
+        
+        # Name filtering logic
+        if delivery_name:
+            # If delivery_name is provided, filter by it
+            # Ensure '直送先名' column exists
+            if '直送先名' in customer_reports.columns:
+                customer_reports = customer_reports[customer_reports['直送先名'] == delivery_name]
+        
+        # If no delivery_name, or if we want to also filter by customer_name when delivery_name is NOT set
+        # The requirement is "past interviewers matching ... Direct Delivery Name (if provided) OR Customer Name (if matching)"
+        # If we selected a delivery destination, we used the block above.
+        # If we selected a customer (without direct delivery), we should strictly filter by that customer name if possible, 
+        # to avoid showing interviewers from other branches if they share the same Customer CD (rare but possible).
+        # OR more importantly, if we are in "Direct Delivery" mode, we already filtered.
+        # If we are NOT in "Direct Delivery" mode (delivery_name is None), we might want to filter by customer_name
+        # to ensure we don't pick up rows that HAVE a direct delivery name (i.e. different destination).
+        elif customer_name:
+             if '訪問先名' in customer_reports.columns:
+                 # Filter rows where Visit Name contains customer_name OR matches exactly
+                 # Since '訪問先名' in DB might contain 'Customer Name Direct Delivery Name' now,
+                 # strict matching might be tricky.
+                 # But usually '訪問先名' == 'Customer Name' for standard records.
+                 # Let's try exact match or contains.
+                 # Also, we might want to EXCLUDE rows that have a '直送先名' if we are selecting a generic customer?
+                 # User said: " 直近のログではなく、得意先名や直送先名が一致する過去に入力した面談者のみ"
+                 
+                 # If delivery_name is NOT provided, it effectively means we want records for the main customer.
+                 # So we should probably match rows where Visit Name is exactly Customer Name, OR contains it.
+                 # Let's use simple filtering: if customer_name is passed, try to filter by it.
+                 # But keep in mind 訪問先名 might include 直送先名 suffix now.
+                 pass
+
+        # Updated Strategy for clarity:
+        # 1. Base: Customer CD
+        # 2. If delivery_name provided: matches '直送先名' == delivery_name
+        # 3. If delivery_name NOT provided but customer_name provided: matches '訪問先名' == customer_name OR '直送先名' is Empty/NaN
+        #    (This covers the case where we selected the main customer and want to exclude direct delivery branches)
+        
+        if delivery_name and '直送先名' in customer_reports.columns:
+            customer_reports = customer_reports[customer_reports['直送先名'] == delivery_name]
+        elif '直送先名' in customer_reports.columns:
+             # If no delivery name specified, we prefer rows that ALSO have no delivery name specified
+             # This avoids suggesting interviewers specific to a branch when we selected the HQ
+             customer_reports = customer_reports[
+                 customer_reports['直送先名'].isna() | 
+                 (customer_reports['直送先名'] == '') | 
+                 (customer_reports['直送先名'] == None)
+             ]
+
         interviewers = customer_reports['面談者'].dropna().unique().tolist()
         
         # Remove empty strings and sort
@@ -345,6 +403,7 @@ def get_interviewers(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
         
         return {"customer_cd": customer_cd, "interviewers": interviewers}
     except Exception as e:
+        print(f"Error in get_interviewers: {str(e)}") # Add logging
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/designs/{customer_cd}")
