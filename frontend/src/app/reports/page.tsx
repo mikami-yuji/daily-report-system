@@ -502,7 +502,7 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
     const selectCustomer = (customer: Customer) => {
         setFormData(prev => ({
             ...prev,
-            訪問先名: customer.直送先名 || customer.得意先名 || '',
+            訪問先名: customer.直送先名 ? `${customer.得意先名}　${customer.直送先名}` : (customer.得意先名 || ''),
             直送先名: customer.直送先名 || '',
             得意先CD: customer.得意先CD || '',
             直送先CD: customer.直送先CD || '',
