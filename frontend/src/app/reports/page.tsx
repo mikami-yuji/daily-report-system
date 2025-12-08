@@ -473,9 +473,8 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
 
     const filterCustomers = (searchTerm: string) => {
         if (!searchTerm.trim()) {
-            // Empty search: show top 50 customers
-            setFilteredCustomers(customers.slice(0, 50));
-            setShowSuggestions(true);
+            setFilteredCustomers([]);
+            setShowSuggestions(false);
             return;
         }
 
@@ -511,12 +510,6 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
         }).slice(0, 50); // Limit to 50 results
         setFilteredCustomers(filtered);
         setShowSuggestions(filtered.length > 0);
-    };
-
-    const handleCustomerInputFocus = () => {
-        if (!showSuggestions) {
-            filterCustomers(formData.訪問先名);
-        }
     };
 
     const selectCustomer = (customer: Customer) => {
@@ -720,18 +713,8 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                 onChange={handleCustomerNameChange}
                                 required
                                 autoComplete="off"
-                                onFocus={handleCustomerInputFocus}
-                                onClick={handleCustomerInputFocus}
-                                className="w-full pl-3 pr-10 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
                             />
-                            <button
-                                type="button"
-                                onClick={handleCustomerInputFocus}
-                                className="absolute right-2 top-[34px] text-gray-400 hover:text-gray-600 p-1"
-                                tabIndex={-1}
-                            >
-                                <ChevronDown size={16} />
-                            </button>
                             {formData.直送先名 && (
                                 <div className="mt-1 text-sm text-sf-light-blue flex items-center gap-1">
                                     <span className="i-lucide-truck w-3 h-3"></span>
