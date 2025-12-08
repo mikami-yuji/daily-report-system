@@ -263,13 +263,15 @@ def get_reports(filename: str = DEFAULT_EXCEL_FILE):
         # Get dataframe from cache
         df = get_cached_dataframe(filename, '営業日報')
         
-        # Clean up column names (remove newlines)
-        df.columns = [str(col).replace('\n', '') for col in df.columns]
+        # Clean up column names (remove newlines and strip)
+        df.columns = [str(col).replace('\n', '').strip() for col in df.columns]
         
         # Rename specific columns to match frontend expectations
         df = df.rename(columns={
             '得意先CD.': '得意先CD',
-            '訪問先名得意先名': '訪問先名'
+            '訪問先名得意先名': '訪問先名',
+            '直送先CD.': '直送先CD',
+            '直送先名.': '直送先名'
         })
         
         # Replace all NaN, infinity, and null values with None
@@ -293,7 +295,7 @@ def get_reports(filename: str = DEFAULT_EXCEL_FILE):
                     if math.isnan(value) or math.isinf(value):
                         cleaned_record[key] = None
                     # Convert customer code to string without decimal
-                    elif key == '得意先CD' and not math.isnan(value):
+                    elif key in ['得意先CD', '直送先CD'] and not math.isnan(value):
                         cleaned_record[key] = str(int(value))
                     else:
                         cleaned_record[key] = value

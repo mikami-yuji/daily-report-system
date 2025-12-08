@@ -59,7 +59,8 @@ export default function MassRetailerSurveyPage() {
             filtered = filtered.filter(report => {
                 const searchText = [
                     report.訪問先名,
-                    report.コメント,
+                    report.上長コメント,
+                    report.コメント返信欄,
                     report.エリア,
                     report.行動内容
                 ].join(' ').toLowerCase();
@@ -197,11 +198,11 @@ export default function MassRetailerSurveyPage() {
                             </div>
 
                             {/* Content */}
-                            {report.コメント && (
+                            {report.上長コメント && (
                                 <div className="mb-3">
-                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">コメント</h4>
+                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">上長コメント</h4>
                                     <div className="bg-gray-50 rounded-lg p-4">
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{report.コメント}</p>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{report.上長コメント}</p>
                                     </div>
                                 </div>
                             )}

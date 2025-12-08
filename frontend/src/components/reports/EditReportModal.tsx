@@ -1,0 +1,297 @@
+import React, { useState } from 'react';
+import { Report, updateReport } from '@/lib/api';
+import { useOffline } from '@/context/OfflineContext';
+import { sanitizeReport } from '@/lib/reportUtils';
+import { X } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+interface EditReportModalProps {
+    report: Report;
+    onClose: () => void;
+    onSuccess: () => void;
+    selectedFile: string;
+    setReports: React.Dispatch<React.SetStateAction<Report[]>>;
+    reports: Report[];
+}
+
+export default function EditReportModal({ report, onClose, onSuccess, selectedFile, setReports, reports }: EditReportModalProps) {
+    const { isOnline, saveOfflineReport, cacheReports } = useOffline();
+
+    const [formData, setFormData] = useState({
+        日付: report.日付 || '',
+        行動内容: report.行動内容 || '',
+        エリア: report.エリア || '',
+        得意先CD: report.得意先CD || '',
+        直送先CD: report.直送先CD || '',
+        訪問先名: report.訪問先名 || '',
+        直送先名: report.直送先名 || '',
+        面談者: report.面談者 || '',
+        滞在時間: report.滞在時間 || '',
+        商談内容: report.商談内容 || '',
+        提案物: report.提案物 || '',
+        次回プラン: report.次回プラン || '',
+        重点顧客: report.重点顧客 || '',
+        ランク: report.ランク || '',
+        上長コメント: report.上長コメント || '',
+        コメント返信欄: report.コメント返信欄 || ''
+    });
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+
+        const { 管理番号, ...rest } = report;
+        const fullReport = { ...rest, ...formData };
+        const sanitized = sanitizeReport(fullReport);
+
+        try {
+
+            if (!isOnline) {
+                saveOfflineReport(sanitized, selectedFile, 'update', report.管理番号);
+
+                // Optimistic UI update
+                const updatedReport = { ...report, ...sanitized };
+                setReports(prev => prev.map(r => r.管理番号 === report.管理番号 ? updatedReport : r));
+                cacheReports(reports.map(r => r.管理番号 === report.管理番号 ? updatedReport : r));
+
+                onSuccess();
+                return;
+            }
+
+            await updateReport(report.管理番号, sanitized, selectedFile);
+            toast.success('日報を更新しました', {
+                duration: 4000,
+                position: 'top-right',
+            });
+            onSuccess();
+        } catch (error) {
+            console.error('Error updating report:', error);
+
+            // Fallback to offline save on error (e.g. server down)
+            saveOfflineReport(sanitized, selectedFile, 'update', report.管理番号);
+
+            // Optimistic UI update
+            const updatedReport = { ...report, ...sanitized };
+            setReports(prev => prev.map(r => r.管理番号 === report.管理番号 ? updatedReport : r));
+            cacheReports(reports.map(r => r.管理番号 === report.管理番号 ? updatedReport : r)); // Note: This uses 'reports' from props which might be stale if setReports hasn't updated it yet? 
+            // Actually 'reports' prop is from render cycle. 'prev' in setReports is latest.
+            // Using 'reports' from props for cacheReports might be slightly risky if concurrent updates, but OK for now.
+            // Better: cacheReports(newReports) inside setReports?
+            // setReports(prev => { const new = ...; cacheReports(new); return new; });
+            // But cacheReports is from hook, stable.
+            // I'll stick to original logic structure which did:
+            /*
+            setReports(prev => {
+                const newReports = prev.map(r => r.管理番号 === report.管理番号 ? updatedReport : r);
+                cacheReports(newReports); // Update cache as well
+                return newReports;
+            });
+            */
+            // I should replicate that safer logic for fallback too.
+
+            setReports(prev => {
+                const newReports = prev.map(r => r.管理番号 === report.管理番号 ? updatedReport : r);
+                cacheReports(newReports);
+                return newReports;
+            });
+
+
+            toast.success('サーバー通信エラー。オフラインで保存しました。', {
+                duration: 4000,
+                position: 'top-right',
+                icon: '📡'
+            });
+            onSuccess();
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        setFormData(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-sf-border p-4 flex justify-between items-center z-10">
+                    <h2 className="text-xl font-bold text-sf-text">日報編集 (No. {report.管理番号})</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-sf-text-weak hover:text-sf-text"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">日付 *</label>
+                            <input
+                                type="text"
+                                name="日付"
+                                value={formData.日付}
+                                onChange={handleChange}
+                                placeholder="YY/MM/DD"
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">行動内容 *</label>
+                            <select
+                                name="行動内容"
+                                value={formData.行動内容}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            >
+                                <option value="">選択してください</option>
+                                <option value="-">-</option>
+                                <option value="訪問（アポあり）">訪問（アポあり）</option>
+                                <option value="訪問（アポなし）">訪問（アポなし）</option>
+                                <option value="訪問（新規）">訪問（新規）</option>
+                                <option value="訪問（クレーム）">訪問（クレーム）</option>
+                                <option value="電話商談">電話商談</option>
+                                <option value="電話アポ取り">電話アポ取り</option>
+                                <option value="メール商談">メール商談</option>
+                                <option value="量販店調査">量販店調査</option>
+                                <option value="社内（半日）">社内（半日）</option>
+                                <option value="社内（１日）">社内（１日）</option>
+                                <option value="外出時間">外出時間</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-sf-text mb-1">訪問先名（得意先名） *</label>
+                            <input
+                                type="text"
+                                name="訪問先名"
+                                value={formData.訪問先名}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">面談者</label>
+                            <input
+                                type="text"
+                                name="面談者"
+                                value={formData.面談者}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">滞在時間</label>
+                            <select
+                                name="滞在時間"
+                                value={formData.滞在時間}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            >
+                                <option value="">選択してください</option>
+                                <option value="-">-</option>
+                                <option value="10分未満">10分未満</option>
+                                <option value="30分未満">30分未満</option>
+                                <option value="60分未満">60分未満</option>
+                                <option value="60分以上">60分以上</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">商談内容</label>
+                        <textarea
+                            name="商談内容"
+                            value={formData.商談内容}
+                            onChange={handleChange}
+                            rows={4}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
+                            onFocus={(e) => e.currentTarget.rows = 8}
+                            onBlur={(e) => e.currentTarget.rows = 4}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">提案物</label>
+                        <textarea
+                            name="提案物"
+                            value={formData.提案物}
+                            onChange={handleChange}
+                            rows={1}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
+                            onFocus={(e) => e.currentTarget.rows = 6}
+                            onBlur={(e) => e.currentTarget.rows = 1}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-sf-text mb-1">次回プラン</label>
+                        <textarea
+                            name="次回プラン"
+                            value={formData.次回プラン}
+                            onChange={handleChange}
+                            rows={1}
+                            className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
+                            onFocus={(e) => e.currentTarget.rows = 6}
+                            onBlur={(e) => e.currentTarget.rows = 1}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-sf-border">
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1 text-blue-800">上長コメント</label>
+                            <textarea
+                                name="上長コメント"
+                                value={formData.上長コメント}
+                                onChange={handleChange}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-blue-200 bg-blue-50 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                placeholder="上長からのコメントを入力..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1 text-green-800">コメント返信欄</label>
+                            <textarea
+                                name="コメント返信欄"
+                                value={formData.コメント返信欄}
+                                onChange={handleChange}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-green-200 bg-green-50 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                                placeholder="コメントへの返信を入力..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-sf-border">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2 border border-sf-border rounded text-sf-text hover:bg-gray-50"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-sf-light-blue text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {submitting ? '更新中...' : '更新'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import { getReports, Report } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { Search, Users, TrendingUp, MapPin, ChevronRight, ChevronDown, CornerDownRight } from 'lucide-react';
+import { Search, Users, TrendingUp, MapPin, ChevronRight, ChevronDown, CornerDownRight, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface CustomerSummary {
@@ -255,8 +255,17 @@ export default function CustomersPage() {
                             placeholder="得意先、直送先..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
+                            className="w-full pl-10 pr-10 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
                         />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                                title="検索条件をクリア"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
 
                     <div className="relative">
