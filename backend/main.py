@@ -37,6 +37,15 @@ def load_config():
 EXCEL_DIR = load_config()
 DEFAULT_EXCEL_FILE = "daily_report_template.xlsm"
 
+def create_backup(file_path: str):
+    """Create a backup of the Excel file"""
+    try:
+        backup_path = f"{file_path}.bak"
+        shutil.copy2(file_path, backup_path)
+        print(f"Backup created at {backup_path}")
+    except Exception as e:
+        print(f"Warning: Failed to create backup: {e}")
+
 class ReportInput(BaseModel):
     model_config = {"populate_by_name": True}
     
