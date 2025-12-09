@@ -129,10 +129,14 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
             
     # Read from file
     try:
-        df = pd.read_excel(excel_file, sheet_name=sheet_name, header=0)
+        # Explicitly use openpyxl engine
+        df = pd.read_excel(excel_file, sheet_name=sheet_name, header=0, engine='openpyxl')
         CACHE[cache_key] = {'mtime': current_mtime, 'df': df}
         return df.copy()
     except Exception as e:
+        print(f"Error reading Excel file {excel_file}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
 
 @app.get("/customers")
@@ -180,7 +184,12 @@ def get_customers(filename: str = DEFAULT_EXCEL_FILE):
             cleaned_records.append(cleaned_record)
 
         return cleaned_records
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"Error in get_customers: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
         
 
