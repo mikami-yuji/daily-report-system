@@ -26,7 +26,7 @@ def load_config():
     config_path = os.path.join(os.path.dirname(__file__), 'config.json')
     if os.path.exists(config_path):
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, 'r', encoding='utf-8-sig') as f:
                 config = json.load(f)
                 return config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
         except Exception as e:
@@ -83,19 +83,29 @@ def list_excel_files():
     """List all Excel files in the directory"""
     try:
         files = []
+        if not os.path.exists(EXCEL_DIR):
+             print(f"Error: EXCEL_DIR not found: {EXCEL_DIR}")
+             return {"files": [], "default": DEFAULT_EXCEL_FILE, "error": "Directory not found"}
+
         for file in os.listdir(EXCEL_DIR):
             if file.endswith(('.xlsx', '.xlsm')):
                 file_path = os.path.join(EXCEL_DIR, file)
-                file_size = os.path.getsize(file_path)
-                file_mtime = os.path.getmtime(file_path)
-                files.append({
-                    "name": file,
-                    "size": file_size,
-                    "modified": datetime.fromtimestamp(file_mtime).isoformat()
-                })
+                try:
+                    file_size = os.path.getsize(file_path)
+                    file_mtime = os.path.getmtime(file_path)
+                    files.append({
+                        "name": file,
+                        "size": file_size,
+                        "modified": datetime.fromtimestamp(file_mtime).isoformat()
+                    })
+                except Exception as file_err:
+                    print(f"Skipping file {file} due to error: {file_err}")
+                    continue
         return {"files": files, "default": DEFAULT_EXCEL_FILE}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Server Error: {str(e)}")
 
 
 # Cache for Excel dataframes: {(filename, sheet_name): {'mtime': float, 'df': pd.DataFrame}}
