@@ -23,17 +23,26 @@ app.add_middleware(
 # Load configuration
 def load_config():
     config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    default_path = r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
+    
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                return config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
+                path = config.get('excel_dir', default_path)
+                print(f"INFO: Successfully loaded config. Excel Path: {path}")
+                return path
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
-            return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
-    return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
+            print(f"INFO: Using default path: {default_path}")
+            return default_path
+    
+    print(f"INFO: config.json not found. Using default path: {default_path}")
+    return default_path
 
 EXCEL_DIR = load_config()
+print(f"STARTUP: Working with EXCEL_DIR: {EXCEL_DIR}")
+
 DEFAULT_EXCEL_FILE = "daily_report_template.xlsm"
 
 class ReportInput(BaseModel):
@@ -75,26 +84,45 @@ class ReportInput(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"message": "Daily Report API is running"}
+    return {"message": "Daily Report API is running", "excel_dir": EXCEL_DIR}
 
 @app.get("/files")
 def list_excel_files():
     """List all Excel files in the directory"""
+    print(f"DEBUG: Listing files in {EXCEL_DIR}")
+    if not os.path.exists(EXCEL_DIR):
+         print(f"ERROR: Directory not found: {EXCEL_DIR}")
+         raise HTTPException(status_code=500, detail=f"Excel Directory not found: {EXCEL_DIR}")
+         
     try:
         files = []
-        for file in os.listdir(EXCEL_DIR):
+        # Add timeout protection or more verbose logging? 
+        # listing network drive can appear to hang.
+        
+        items = os.listdir(EXCEL_DIR)
+        print(f"DEBUG: Found {len(items)} items in directory")
+        
+        for file in items:
             if file.endswith(('.xlsx', '.xlsm')):
                 file_path = os.path.join(EXCEL_DIR, file)
-                file_size = os.path.getsize(file_path)
-                file_mtime = os.path.getmtime(file_path)
-                files.append({
-                    "name": file,
-                    "size": file_size,
-                    "modified": datetime.fromtimestamp(file_mtime).isoformat()
-                })
+                try:
+                    file_size = os.path.getsize(file_path)
+                    file_mtime = os.path.getmtime(file_path)
+                    files.append({
+                        "name": file,
+                        "size": file_size,
+                        "modified": datetime.fromtimestamp(file_mtime).isoformat()
+                    })
+                except Exception as file_err:
+                    print(f"WARN: Error processing file {file}: {file_err}")
+                    continue
+                    
         return {"files": files, "default": DEFAULT_EXCEL_FILE}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"CRITICAL ERROR in list_excel_files: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
 
 
 # Cache for Excel dataframes: {(filename, sheet_name): {'mtime': float, 'df': pd.DataFrame}}
@@ -125,7 +153,8 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
     excel_file = os.path.join(EXCEL_DIR, filename)
     
     if not os.path.exists(excel_file):
-        raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found")
+        print(f"ERROR: File not found: {excel_file}")
+        raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found at {excel_file}")
     
     current_mtime = os.path.getmtime(excel_file)
     cache_key = (filename, sheet_name)
@@ -137,11 +166,16 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
             
     # Read from file
     try:
+        print(f"DEBUG: Reading Excel {excel_file}, sheet={sheet_name}")
         df = pd.read_excel(excel_file, sheet_name=sheet_name, header=0)
         CACHE[cache_key] = {'mtime': current_mtime, 'df': df}
         return df.copy()
     except Exception as e:
+        print(f"ERROR: Reading Excel failed: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
+
 
 @app.get("/customers")
 def get_customers(filename: str = DEFAULT_EXCEL_FILE):
