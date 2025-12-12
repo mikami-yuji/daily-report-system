@@ -1,3 +1,4 @@
+# encoding: utf-8
 from typing import Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,7 +29,14 @@ def load_config():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                return config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
+                excel_dir = config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
+                
+                # Verify if the directory exists
+                if os.path.exists(excel_dir):
+                    return excel_dir
+                else:
+                    print(f"Warning: Configured path '{excel_dir}' does not exist. Falling back to default.")
+                    return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
             return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
