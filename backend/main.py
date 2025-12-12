@@ -1,8 +1,7 @@
-# encoding: utf-8
-from typing import Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 import pandas as pd
 import openpyxl
 from datetime import datetime
@@ -29,21 +28,14 @@ def load_config():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                excel_dir = config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
-                
-                # Verify if the directory exists
-                if os.path.exists(excel_dir):
-                    return excel_dir
-                else:
-                    print(f"Warning: Configured path '{excel_dir}' does not exist. Falling back to default.")
-                    return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
+                return config.get('excel_dir', r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度')
         except Exception as e:
             print(f"Warning: Failed to load config.json: {e}")
             return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
     return r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
 
 EXCEL_DIR = load_config()
-DEFAULT_EXCEL_FILE = "daily_report_template.xlsm"
+DEFAULT_EXCEL_FILE = "本社008　2025年度用日報【見上】.xlsm"
 
 class ReportInput(BaseModel):
     model_config = {"populate_by_name": True}
@@ -103,14 +95,6 @@ def list_excel_files():
                 })
         return {"files": files, "default": DEFAULT_EXCEL_FILE}
     except Exception as e:
-        import traceback
-        error_msg = f"Error accessing {EXCEL_DIR}: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg)
-        try:
-            with open("backend_error.log", "a", encoding="utf-8") as f:
-                f.write(f"[{datetime.now()}] {error_msg}\n")
-        except:
-            pass
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -141,31 +125,6 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
         return df.copy()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading Excel file: {str(e)}")
-
-
-def create_backup(file_path: str) -> Optional[str]:
-    """
-    Excelファイルのバックアップを作成する。
-    バックアップファイルは元のファイル名に日時を付加して同じディレクトリに保存。
-    """
-    try:
-        if not os.path.exists(file_path):
-            return None
-        
-        # バックアップファイル名を生成（例: file_20251210_123456.bak）
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = os.path.dirname(file_path)
-        base_name = os.path.basename(file_path)
-        name_without_ext = os.path.splitext(base_name)[0]
-        backup_name = f"{name_without_ext}_{timestamp}.bak"
-        backup_path = os.path.join(backup_dir, backup_name)
-        
-        shutil.copy2(file_path, backup_path)
-        print(f"Backup created: {backup_path}")
-        return backup_path
-    except Exception as e:
-        print(f"Warning: Failed to create backup: {e}")
-        return None
 
 @app.get("/customers")
 def get_customers(filename: str = DEFAULT_EXCEL_FILE):

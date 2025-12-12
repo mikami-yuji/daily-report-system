@@ -1,12 +1,10 @@
-' 営業日報システム 停止
-' このファイルをダブルクリックすると、バックエンドとフロントエンドを停止します
+' Daily Report System Stop Script
+' Double-click to stop backend and frontend processes
 
 Set WshShell = CreateObject("WScript.Shell")
 
-' Node.jsプロセス（フロントエンド）を停止
+' Kill Python (backend) and Node (frontend) processes
+WshShell.Run "taskkill /F /IM python.exe", 0, True
 WshShell.Run "taskkill /F /IM node.exe", 0, True
 
-' Pythonプロセス（バックエンド）を停止
-WshShell.Run "taskkill /F /IM python.exe", 0, True
-
-MsgBox "営業日報システムを停止しました。", vbInformation, "営業日報システム"
+MsgBox "Daily Report System Stopped!", vbInformation, "Daily Report System"

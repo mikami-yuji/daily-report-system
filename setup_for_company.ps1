@@ -12,25 +12,14 @@ if (!(Test-Path $BackendDir)) {
 }
 
 # config.jsonの内容（社内ネットワークパスを設定）
-# JSONファイル作成（Pythonを使用してUTF-8で確実に作成）
-$JsonPath = Join-Path $BackendDir "config.json"
-$ExcelDir = "\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度"
-
-$PythonScript = @"
-import json
-import os
-
-config_path = r'$JsonPath'
-config_content = {
-    'excel_dir': r'$ExcelDir'
+$ConfigContent = @{
+    excel_dir = "\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度"
 }
 
-with open(config_path, 'w', encoding='utf-8') as f:
-    json.dump(config_content, f, ensure_ascii=False, indent=2)
-print('Config file created successfully.')
-"@
-
-python -c $PythonScript
+# JSONファイル作成（UTF-8 BOMなし）
+$JsonPath = Join-Path $BackendDir "config.json"
+$JsonString = ConvertTo-Json $ConfigContent -Compress
+[System.IO.File]::WriteAllText($JsonPath, $JsonString, (New-Object System.Text.UTF8Encoding $false))
 
 Write-Host "設定ファイル(config.json)を作成しました。" -ForegroundColor Green
 Write-Host "設定パス: $($ConfigContent.excel_dir)" -ForegroundColor Gray
