@@ -19,11 +19,12 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
 
     // Parse initial time and clean content from 商談内容
     const parseInitialData = (content: string) => {
-        if (!content) return { start: '', end: '', content: '' };
+        if (!content) return { start: '', end: '', content: '', satisfaction: '' };
 
         let newContent = content;
         let start = '';
         let end = '';
+        let satisfaction = '';
 
         // Extract Time
         const timeMatch = newContent.match(/^【外出時間】(\d{2}:\d{2})〜(\d{2}:\d{2})\n/);
@@ -33,16 +34,19 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
             newContent = newContent.replace(timeMatch[0], '');
         }
 
-        // Remove Satisfaction tag if present (to avoid duplication in view)
-        // We rely on report.ランク for the dropdown value
-        newContent = newContent.replace(/^【満足度】.*?\n/, '');
+        // Extract Satisfaction tag if present
+        const satMatch = newContent.match(/^【満足度】(.*)\n/);
+        if (satMatch) {
+            satisfaction = satMatch[1];
+            newContent = newContent.replace(satMatch[0], '');
+        }
 
-        return { start, end, content: newContent };
+        return { start, end, content: newContent, satisfaction };
     };
 
     const initialParsed = (report.行動内容 === '外出時間' && report.商談内容)
         ? parseInitialData(report.商談内容)
-        : { start: '', end: '', content: report.商談内容 || '' };
+        : { start: '', end: '', content: report.商談内容 || '', satisfaction: '' };
 
     const [formData, setFormData] = useState({
         日付: report.日付 || '',
@@ -58,7 +62,7 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
         提案物: report.提案物 || '',
         次回プラン: report.次回プラン || '',
         重点顧客: report.重点顧客 || '',
-        ランク: report.ランク || '',
+        ランク: initialParsed.satisfaction || report.ランク || '', // ランクカラムが空でも本文から復元
         上長コメント: report.上長コメント || '',
         コメント返信欄: report.コメント返信欄 || ''
     });
@@ -93,6 +97,8 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
                 timeString += `【満足度】${formData.ランク}\n`;
             }
             finalFormData.商談内容 = timeString + (formData.商談内容 || '');
+            // ユーザー要望: ランクカラムには保存しない
+            finalFormData.ランク = '';
         }
 
         const fullReport = { ...rest, ...finalFormData };

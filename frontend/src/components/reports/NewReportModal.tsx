@@ -227,6 +227,8 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
                     timeString += `【満足度】${formData.ランク}\n`;
                 }
                 finalFormData.商談内容 = timeString + (formData.商談内容 || '');
+                // ユーザー要望: ランクカラムには保存しない
+                finalFormData.ランク = '';
             }
 
             const response = await fetch(`/api/reports?filename=${encodeURIComponent(selectedFile)}`, {
