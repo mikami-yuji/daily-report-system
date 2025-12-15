@@ -26,6 +26,7 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
         商談内容: '',
         提案物: '',
         次回プラン: '',
+        競合他社情報: '',
         重点顧客: '',
         ランク: '',
         デザイン提案有無: '',
@@ -633,6 +634,21 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
                                 rows={1}
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
                                 onFocus={(e) => e.currentTarget.rows = 6}
+                                onBlur={(e) => e.currentTarget.rows = 1}
+                            />
+                        </div>
+                    )}
+
+                    {!isMinimalUI && (
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">競合他社情報</label>
+                            <textarea
+                                name="競合他社情報"
+                                value={formData.競合他社情報}
+                                onChange={handleChange}
+                                rows={1}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
+                                onFocus={(e) => e.currentTarget.rows = 4}
                                 onBlur={(e) => e.currentTarget.rows = 1}
                             />
                         </div>

@@ -73,6 +73,7 @@ class ReportInput(BaseModel):
     商談内容: str = ""
     提案物: str = ""
     次回プラン: str = ""
+    競合他社情報: str = ""
     デザイン提案有無: str = ""
     デザイン種別: str = ""
     デザイン名: str = ""
@@ -591,16 +592,17 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
             8: report.直送先名, # 直送先名
             9: report.重点顧客, # 重点顧客
             10: report.ランク, # ランク
-            12: report.面談者, # 面談者
-            13: report.滞在時間, # 滞在\n時間
-            14: report.デザイン提案有無, # デザイン提案有無
-            15: report.デザイン種別, # デザイン種別
-            16: report.デザイン名, # デザイン名
-            17: report.デザイン進捗状況, # デザイン進捗状況
-            18: report.デザイン依頼No, # デザイン依頼No.
-            19: report.商談内容, # 商談内容 (Index 19)
-            20: report.提案物, # 提案物 (Index 20)
-            21: report.次回プラン # 次回プラン (Index 21)
+            11: report.面談者, # 面談者 (Corrected from 12)
+            12: report.滞在時間, # 滞在\n時間 (Corrected from 13)
+            13: report.デザイン提案有無, # デザイン提案有無 (Corrected from 14)
+            14: report.デザイン種別, # デザイン種別 (Corrected from 15)
+            15: report.デザイン名, # デザイン名 (Corrected from 16)
+            16: report.デザイン進捗状況, # デザイン進捗状況 (Corrected from 17)
+            17: report.デザイン依頼No, # デザイン依頼No. (Corrected from 18)
+            18: report.商談内容, # 商談内容 (Corrected from 19)
+            19: report.提案物, # 提案物 (Corrected from 20)
+            20: report.次回プラン, # 次回プラン (Corrected from 21)
+            21: report.競合他社情報 # 競合他社情報 (New)
         }
 
         for col_idx, value in columns_to_write.items():
@@ -675,16 +677,17 @@ def update_report(management_number: int, report: ReportInput, filename: str = D
             8: report.直送先名,
             9: report.重点顧客,
             10: report.ランク,
-            12: report.面談者,
-            13: report.滞在時間,
-            14: report.デザイン提案有無,
-            15: report.デザイン種別,
-            16: report.デザイン名,
-            17: report.デザイン進捗状況,
-            18: report.デザイン依頼No,
-            19: report.商談内容,
-            20: report.提案物,
-            21: report.次回プラン
+            11: report.面談者,
+            12: report.滞在時間,
+            13: report.デザイン提案有無,
+            14: report.デザイン種別,
+            15: report.デザイン名,
+            16: report.デザイン進捗状況,
+            17: report.デザイン依頼No,
+            18: report.商談内容,
+            19: report.提案物,
+            20: report.次回プラン,
+            21: report.競合他社情報
         }
 
         for col_idx, value in columns_to_write.items():

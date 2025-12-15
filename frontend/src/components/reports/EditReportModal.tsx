@@ -61,6 +61,7 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
         商談内容: initialParsed.content,
         提案物: report.提案物 || '',
         次回プラン: report.次回プラン || '',
+        競合他社情報: report.競合他社情報 || '',
         重点顧客: report.重点顧客 || '',
         ランク: initialParsed.satisfaction || report.ランク || '', // ランクカラムが空でも本文から復元
         上長コメント: report.上長コメント || '',
@@ -360,6 +361,21 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
                                 rows={1}
                                 className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
                                 onFocus={(e) => e.currentTarget.rows = 6}
+                                onBlur={(e) => e.currentTarget.rows = 1}
+                            />
+                        </div>
+                    )}
+
+                    {!isMinimalUI && (
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">競合他社情報</label>
+                            <textarea
+                                name="競合他社情報"
+                                value={formData.競合他社情報}
+                                onChange={handleChange}
+                                rows={1}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue transition-all duration-200 resize-none"
+                                onFocus={(e) => e.currentTarget.rows = 4}
                                 onBlur={(e) => e.currentTarget.rows = 1}
                             />
                         </div>
