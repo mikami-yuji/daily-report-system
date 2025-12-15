@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getReports, Report } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { Plus, Filter, RefreshCw, FileText, FolderOpen, LayoutList, Table } from 'lucide-react';
+import { Plus, Filter, RefreshCw, FileText, LayoutList, Table } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useOffline } from '@/context/OfflineContext';
 import NewReportModal from '@/components/reports/NewReportModal';
@@ -124,18 +124,6 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {/* File Selector */}
-                    <div className="flex items-center gap-2 border border-sf-border rounded px-3 py-2 bg-white">
-                        <FolderOpen size={16} className="text-sf-text-weak" />
-                        <select
-                            value={selectedFile}
-                            onChange={(e) => setSelectedFile(e.target.value)}
-                            className="text-sm text-sf-text bg-transparent border-none outline-none cursor-pointer"
-                        >
-                            {files.map(file => (
-                                <option key={file.name} value={file.name}>{file.name}</option>
-                            ))}
-                        </select>
-                    </div>
 
                     <div className="flex bg-gray-100 p-1 rounded border border-sf-border">
                         <button

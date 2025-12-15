@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getReports, uploadFile, Report } from '@/lib/api';
+import { getReports, Report } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { FileText, Calendar, Users, Phone, TrendingUp, Star, BarChart3, Upload } from 'lucide-react';
+import { FileText, Calendar, Users, Phone, TrendingUp, Star, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import {
   BarChart,
@@ -25,10 +25,9 @@ interface MonthlyStats {
 }
 
 export default function Home() {
-  const { files, selectedFile, setSelectedFile, refreshFiles } = useFile();
+  const { selectedFile } = useFile();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (selectedFile) {
@@ -124,54 +123,10 @@ export default function Home() {
   // グラフ用データ (古い順)
   const chartData = [...sortedMonths].reverse();
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      await uploadFile(file);
-      // ファイルリストを再読み込み
-      await refreshFiles();
-      setSelectedFile(file.name);
-      alert(`ファイル「${file.name}」をアップロードしました`);
-    } catch (error) {
-      console.error('File upload failed:', error);
-      alert('ファイルのアップロードに失敗しました');
-    } finally {
-      setUploading(false);
-      // input要素をリセット
-      event.target.value = '';
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-sf-text">ホーム</h1>
-        <div className="flex items-center gap-2">
-          <label className={`flex items-center justify-center px-3 py-2 rounded border border-sf-border bg-white cursor-pointer hover:bg-gray-50 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`} title="Excelファイルをアップロード">
-            <input
-              type="file"
-              accept=".xlsx,.xlsm"
-              className="hidden"
-              onChange={handleFileUpload}
-              disabled={uploading}
-            />
-            <Upload size={18} className="text-sf-text-weak mr-2" />
-            <span className="text-sm text-sf-text">読込</span>
-          </label>
-          <select
-            value={selectedFile}
-            onChange={(e) => setSelectedFile(e.target.value)}
-            className="text-sm text-sf-text bg-white border border-sf-border rounded px-3 py-2"
-          >
-            {files.map(file => (
-              <option key={file.name} value={file.name}>{file.name}</option>
-            ))}
-          </select>
-
-        </div>
       </div>
 
       {/* サマリーカード */}
