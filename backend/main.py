@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 import pandas as pd
@@ -532,7 +532,7 @@ def get_designs(customer_cd: str, filename: str = DEFAULT_EXCEL_FILE):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/reports")
-def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
+def add_report(report: ReportInput, background_tasks: BackgroundTasks, filename: str = DEFAULT_EXCEL_FILE):
     excel_file = os.path.join(EXCEL_DIR, filename)
     if not os.path.exists(excel_file):
         raise HTTPException(status_code=404, detail=f"Excel file '{filename}' not found")
@@ -618,12 +618,12 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
                 copy_style(source_cell, target_cell)
 
         
-        # Create backup before saving
-        create_backup(excel_file)
-        
-        # Save the workbook
+        # Save the workbook (Critical path - blocking)
         wb.save(excel_file)
         wb.close()
+
+        # Create backup in background
+        background_tasks.add_task(create_backup, excel_file)
         
         
         # Clear cache
@@ -645,7 +645,7 @@ def add_report(report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/reports/{management_number}")
-def update_report(management_number: int, report: ReportInput, filename: str = DEFAULT_EXCEL_FILE):
+def update_report(management_number: int, report: ReportInput, background_tasks: BackgroundTasks, filename: str = DEFAULT_EXCEL_FILE):
     """既存の日報を更新（全項目対応）"""
     try:
         excel_file = os.path.join(EXCEL_DIR, filename)
@@ -697,12 +697,12 @@ def update_report(management_number: int, report: ReportInput, filename: str = D
         for col_idx, value in columns_to_write.items():
             ws.cell(row=target_row, column=col_idx, value=value)
         
-        # Create backup before saving
-        create_backup(excel_file)
-        
-        # Save the workbook
+        # Save the workbook (Critical path - blocking)
         wb.save(excel_file)
         wb.close()
+        
+        # Create backup in background
+        background_tasks.add_task(create_backup, excel_file)
         
         # Clear cache for this file
         cache_key = (filename, '営業日報')

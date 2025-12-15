@@ -247,11 +247,11 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
             }
 
             const responseData = await response.json();
-            alert(`日報を保存しました。\n\n管理番号: ${responseData.management_number}\n\n保存先:\n${responseData.file_path}`);
+            toast.success(`日報を保存しました (No. ${responseData.management_number})`, { duration: 3000 });
             onSuccess();
         } catch (error: any) {
             console.error('Error creating report:', error);
-            alert(`日報の作成に失敗しました: ${error.message}`);
+            toast.error(`作成に失敗しました: ${error.message}`);
         } finally {
             setSubmitting(false);
         }

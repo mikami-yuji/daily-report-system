@@ -120,10 +120,7 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
             }
 
             await updateReport(report.管理番号, sanitized, selectedFile);
-            toast.success('日報を更新しました', {
-                duration: 4000,
-                position: 'top-right',
-            });
+            toast.success(`日報を更新しました (No. ${report.管理番号})`);
             onSuccess();
         } catch (error) {
             console.error('Error updating report:', error);
