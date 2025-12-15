@@ -7,16 +7,9 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 ' スクリプトのディレクトリを取得
 scriptPath = fso.GetParentFolderName(WScript.ScriptFullName)
 
-' バックエンドを起動（非表示）
-WshShell.CurrentDirectory = scriptPath & "\backend"
-WshShell.Run "cmd /c python -m uvicorn main:app --host 0.0.0.0 --port 8001", 0, False
-
-' 少し待ってからフロントエンドを起動
-WScript.Sleep 2000
-
-' フロントエンドを起動（非表示）
-WshShell.CurrentDirectory = scriptPath & "\frontend"
-WshShell.Run "cmd /c npm run dev", 0, False
+' start_app.bat を起動（非表示）
+WshShell.CurrentDirectory = scriptPath
+WshShell.Run "cmd /c start_app.bat", 0, False
 
 ' サーバー起動を待つ
 WScript.Sleep 5000
