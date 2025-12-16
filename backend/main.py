@@ -86,6 +86,7 @@ class ReportInput(BaseModel):
     岡本常務: str = ""
     中野次長: str = ""
     既読チェック: str = ""
+    original_values: Optional[dict] = None # For optimistic locking
 
     @field_validator('得意先CD', '直送先CD', mode='before')
     @classmethod
@@ -667,6 +668,41 @@ def update_report(management_number: int, report: ReportInput, background_tasks:
         
         if not target_row:
             raise HTTPException(status_code=404, detail=f"Report with management number {management_number} not found")
+
+        # --- Optimistic Locking Check ---
+        if report.original_values:
+            print(f"DEBUG: Performing conflict check for Report {management_number}")
+            
+            # Fields to check for conflicts (critical text fields)
+            check_fields = {
+                22: '上長コメント',
+                23: 'コメント返信欄',
+                18: '商談内容'
+            }
+            
+            conflicts = []
+            for col_idx, field_name in check_fields.items():
+                current_val = ws.cell(row=target_row, column=col_idx).value
+                current_str = str(current_val) if current_val is not None else ""
+                
+                original_val = report.original_values.get(field_name, "")
+                original_str = str(original_val) if original_val is not None else ""
+                
+                # Normalize newlines for comparison
+                current_str = current_str.replace('\r\n', '\n').replace('\r', '\n').strip()
+                original_str = original_str.replace('\r\n', '\n').replace('\r', '\n').strip()
+                
+                if current_str != original_str:
+                    print(f"CONFLICT: Field '{field_name}' changed. Current: '{current_str}' vs Original: '{original_str}'")
+                    conflicts.append(field_name)
+            
+            if conflicts:
+                conflict_msg = ", ".join(conflicts)
+                raise HTTPException(
+                    status_code=409, 
+                    detail=f"他の方が編集しました（{conflict_msg}）。最新の情報を読み込んでからやり直してください。"
+                )
+        # --------------------------------
         
         # Update all fields (same column mapping as add_report)
         columns_to_write = {

@@ -80,6 +80,13 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
     }
     const [submitting, setSubmitting] = useState(false);
 
+    // Capture initial critical values for conflict detection
+    const initialCriticalValues = React.useMemo(() => ({
+        '上長コメント': report.上長コメント,
+        'コメント返信欄': report.コメント返信欄,
+        '商談内容': report.商談内容
+    }), [report]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
@@ -102,7 +109,7 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
             finalFormData.ランク = '';
         }
 
-        const fullReport = { ...rest, ...finalFormData };
+        const fullReport = { ...rest, ...finalFormData, original_values: initialCriticalValues };
         const sanitized = sanitizeReport(fullReport);
 
         try {
@@ -122,8 +129,26 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
             await updateReport(report.管理番号, sanitized, selectedFile);
             toast.success(`日報を更新しました (No. ${report.管理番号})`);
             onSuccess();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating report:', error);
+
+            if (error.response && error.response.status === 409) {
+                // Conflict detected
+                toast.error(error.response.data.detail || '他の方が編集しました。最新の情報を読み込んでからやり直してください。', {
+                    duration: 6000,
+                    style: {
+                        border: '1px solid #ef4444',
+                        padding: '16px',
+                        color: '#ef4444',
+                    },
+                    iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#FFFAEE',
+                    },
+                });
+                setSubmitting(false);
+                return; // Do not fallback to offline save for conflicts
+            }
 
             // Fallback to offline save on error (e.g. server down)
             saveOfflineReport(sanitized, selectedFile, 'update', report.管理番号);

@@ -33,6 +33,7 @@ export interface Report {
     中野次長: string;
     既読チェック: string;
     'システム確認用デザインNo.': string;
+    original_values?: { [key: string]: any }; // For optimistic locking
 }
 
 export interface ExcelFile {

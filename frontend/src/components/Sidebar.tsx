@@ -29,8 +29,8 @@ function SyncStatus({ collapsed }: { collapsed: boolean }) {
 
     return (
         <div className={`mb-2 p-2 rounded text-xs flex items-center gap-2 ${!isOnline ? 'bg-gray-100 text-gray-600' :
-                syncingCount > 0 ? 'bg-blue-50 text-blue-600' :
-                    'bg-yellow-50 text-yellow-600'
+            syncingCount > 0 ? 'bg-blue-50 text-blue-600' :
+                'bg-yellow-50 text-yellow-600'
             }`}>
             {syncingCount > 0 ? (
                 <RefreshCw size={16} className="animate-spin" />
@@ -115,17 +115,6 @@ export default function Sidebar() {
             {/* Footer / User Info (Simplified) */}
             <div className="p-4 border-t border-sf-border">
                 <SyncStatus collapsed={collapsed} />
-                <div className="flex items-center mt-4">
-                    <div className="w-8 h-8 rounded-full bg-sf-light-blue flex items-center justify-center text-white font-bold text-xs">
-                        MY
-                    </div>
-                    {!collapsed && (
-                        <div className="ml-3">
-                            <p className="text-sm font-medium text-sf-text">見上 祐司</p>
-                            <p className="text-xs text-sf-text-weak">営業部</p>
-                        </div>
-                    )}
-                </div>
             </div>
         </div>
     );
