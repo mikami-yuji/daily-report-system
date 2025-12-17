@@ -984,7 +984,7 @@ def search_design_images(query: str, filename: Optional[str] = None):
         MAX_RESULTS = 50
         
         # Helper for safer walking on finicky network drives
-        def safe_walk(directory, query_lower, extensions, max_depth=3, current_depth=0):
+        def safe_walk(directory, query_lower, extensions, max_depth=3, current_depth=0, parent_matches_query=False):
             results = []
             try:
                 # Use listdir instead of scandir/walk to avoid hanging
@@ -997,16 +997,19 @@ def search_design_images(query: str, filename: Optional[str] = None):
 
             for name in items:
                 full_path = os.path.join(directory, name)
-                
-                # Check file match first (fast string check)
                 name_lower = name.lower()
-                if query_lower in name_lower and name_lower.endswith(extensions):
+                
+                # Check file match
+                # IF parent folder matched, we take ALL images.
+                # IF not, we only take images matching query.
+                is_file_match = False
+                if parent_matches_query and name_lower.endswith(extensions):
+                    is_file_match = True
+                elif query_lower in name_lower and name_lower.endswith(extensions):
+                    is_file_match = True
+                
+                if is_file_match:
                     try:
-                        # Only checking isfile if it looks like a match to verify it's not a folder named 'x.jpg' (rare)
-                        # We can probably skip isfile check for speed if validation isn't critical,
-                        # but standard good practice is to check.
-                        # However, isfile() is a stat call. If we want speed, maybe skip?
-                        # Let's do it to be safe, but only on matches.
                         if os.path.isfile(full_path):
                             try:
                                 rel_path = os.path.relpath(full_path, DESIGN_DIR)
@@ -1023,42 +1026,38 @@ def search_design_images(query: str, filename: Optional[str] = None):
                 
                 # Identify directories for recursion
                 if current_depth < max_depth:
-                    # HEURISTIC OPTIMIZATION:
-                    # Only recurse into folders that seemingly match the query OR if we are at root depth (0) and want to be a bit more generous?
-                    # Actually, for Morita with 1800 folders, we MUST filter.
-                    # If folder name contains query, good.
-                    # If not, skip?
-                    # Risk: Miss 'General/12345.jpg'.
-                    # User needs: 'search by design no'.
-                    # Design folders are usually named '12345-...'
+                    next_parent_matches = parent_matches_query
                     
-                    if query_lower not in name_lower and current_depth > 0:
-                         # Skip unrelated folders at depth > 0
-                         # Maybe strict filter even at depth 0?
-                         pass
+                    # Logic:
+                    # 1. If parent already matched, we continue down (inheriting True).
+                    # 2. If parent didn't match, verify if THIS folder matches.
+                    if not next_parent_matches:
+                        if query_lower in name_lower:
+                            next_parent_matches = True
                     
-                    # For safety on massive folders, let's ONLY recurse if name matches query
-                    # UNLESS we are at root and want to checking if "General" folder exists?
-                    # Let's try strict filtering first.
-                    if query_lower not in name_lower:
-                        continue
+                    # Recursion Filter:
+                    # If we are NOT in a matching tree yet, we MUST skip unrelated folders 
+                    # to avoid massive scan (timeout).
+                    if not next_parent_matches:
+                         # Skip unrelated folders
+                         # BUT maintain the heuristic: maybe strict filter is ok.
+                         # If query is not in name, and we are not already in a matched parent, skip.
+                         continue
 
-                    # If it matches our file extension filter, we already processed it as a file try above.
-                    # So we definitely don't need to check isdir for those.
                     if '.' in name and not name.startswith('.'):
-                        continue # Skip isdir check for likely files
+                        continue 
                         
                     try:
                         if os.path.isdir(full_path):
-                            dirs_to_visit.append(full_path)
+                            dirs_to_visit.append((full_path, next_parent_matches))
                     except Exception:
                         pass
             
             # Recurse
-            for subdir in dirs_to_visit:
-                 sub_results = safe_walk(subdir, query_lower, extensions, max_depth, current_depth + 1)
+            for subdir_path, matches_status in dirs_to_visit:
+                 sub_results = safe_walk(subdir_path, query_lower, extensions, max_depth, current_depth + 1, matches_status)
                  results.extend(sub_results)
-                 if len(results) >= 50: # global max
+                 if len(results) >= 50: 
                      break
             
             return results
@@ -1068,6 +1067,10 @@ def search_design_images(query: str, filename: Optional[str] = None):
             for search_root in search_roots:
                 print(f"DEBUG: Searching root: {search_root}", flush=True)
                 # Use custom walker
+                # Initial parent_matches logic:
+                # If the search_root ITSELF matches query (e.g. we targeted a specific user folder matched by filename, but query is DesignNo),
+                # expected behavior: search for DesignNo INSIDE user folder.
+                # So initial parent_matches = False usually.
                 found_images = safe_walk(search_root, query.lower(), valid_extensions)
                 image_files.extend(found_images)
                 if len(image_files) >= MAX_RESULTS:
