@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getReports, Report } from '@/lib/api';
+import { getReports, Report, getDesignImages, DesignImage, getImageUrl } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { FileText, Calendar, Users, Phone, TrendingUp, Star, BarChart3 } from 'lucide-react';
+import { FileText, Calendar, Users, Phone, TrendingUp, Star, BarChart3, Image as ImageIcon } from 'lucide-react';
 import EditReportModal from '../components/reports/EditReportModal';
 import { MessageCircle, Bell } from 'lucide-react';
 import Link from 'next/link';
@@ -31,11 +31,13 @@ export default function Home() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingReport, setEditingReport] = useState<Report | null>(null);
+  const [images, setImages] = useState<DesignImage[]>([]);
+  const [imageFolder, setImageFolder] = useState<string>('');
 
   useEffect(() => {
     if (selectedFile) {
+      // Fetch Reports
       getReports(selectedFile).then(data => {
-        // 日付の降順（新しい順）にソート
         const sortedData = data.sort((a, b) => {
           const dateA = String(a.日付 || '');
           const dateB = String(b.日付 || '');
@@ -46,6 +48,12 @@ export default function Home() {
       }).catch(err => {
         console.error(err);
         setLoading(false);
+      });
+
+      // Fetch Images
+      getDesignImages(selectedFile).then(data => {
+        setImages(data.images || []);
+        setImageFolder(data.folder || '');
       });
     }
   }, [selectedFile]);
@@ -339,6 +347,40 @@ export default function Home() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* 画像ギャラリー */}
+      <div className="bg-white rounded border border-sf-border shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-sf-border bg-gray-50 flex items-center gap-2">
+          <ImageIcon size={20} className="text-pink-500" />
+          <h2 className="font-semibold text-sm text-sf-text">デザインデータ ({imageFolder || 'フォルダ検索中...'})</h2>
+        </div>
+        <div className="p-4">
+          {images.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {images.map((img, i) => (
+                <div key={i} className="group relative aspect-square bg-gray-100 rounded overflow-hidden border border-gray-200">
+                  <a href={getImageUrl(img.path)} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={getImageUrl(img.path)}
+                      alt={img.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                      {img.name}
+                    </div>
+                  </a>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              {imageFolder ? '画像が見つかりませんでした' : '関連するデザインデータフォルダが見つかりません'}
+            </div>
+          )}
         </div>
       </div>
     </div>

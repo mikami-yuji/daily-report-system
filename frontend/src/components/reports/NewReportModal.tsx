@@ -45,6 +45,8 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
     const [startOutTime, setStartOutTime] = useState('');
     const [endOutTime, setEndOutTime] = useState('');
 
+
+
     // 時間の選択肢を生成 (08:00 - 23:00)
     const timeOptions = [];
     for (let i = 8; i <= 23; i++) {
@@ -61,13 +63,17 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
             cacheCustomers(data); // Cache successful response
         }).catch(err => {
             console.error('Failed to fetch customers:', err);
-            // Fallback to cache if fetch fails (offline or server error)
             if (cachedCustomers.length > 0) {
                 setCustomers(cachedCustomers);
                 toast('キャッシュされた得意先リストを使用します', { icon: '📡', id: 'cached-customers' });
             }
         });
     }, [selectedFile, isOnline, cacheCustomers, cachedCustomers]);
+
+    // ... (existing logic) ...
+    // Note: I will need to replace the imports and state defs first, then find the specific location for the input field.
+    // Actually, I can replace the whole file content for imports, but that's risky.
+
 
     // Handle customer name change with keyword search across all fields including kana
     const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,6 +211,8 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
             }));
         }
     };
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -671,7 +679,9 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
                         </button>
                     </div>
                 </form>
-            </div >
-        </div >
+            </div>
+
+
+        </div>
     );
 }

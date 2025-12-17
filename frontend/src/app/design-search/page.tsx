@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { getReports, Report } from '@/lib/api';
+import { getReports, Report, searchDesignImages, DesignImage, getImageUrl } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { Search, Calendar, User, FileText, ChevronDown, ChevronUp, Package, Layers, TrendingUp, Filter } from 'lucide-react';
+import { Search, Calendar, User, FileText, ChevronDown, ChevronUp, Package, Layers, TrendingUp, Filter, Image as ImageIcon, X } from 'lucide-react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 interface DesignRequest {
-    designNo: number;
+    designNo: string;
     customerCode: string;
     customerName: string;
     designProposal: string;
@@ -27,8 +28,38 @@ export default function DesignSearchPage() {
     const [selectedProgress, setSelectedProgress] = useState<string>('');
     const [designRequests, setDesignRequests] = useState<DesignRequest[]>([]);
     const [filteredRequests, setFilteredRequests] = useState<DesignRequest[]>([]);
-    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [customers, setCustomers] = useState<Array<{ code: string, name: string }>>([]);
+
+    // Image Search State
+    const [searchingImage, setSearchingImage] = useState(false);
+    const [imageResults, setImageResults] = useState<DesignImage[]>([]);
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [searchQueryDebug, setSearchQueryDebug] = useState('');
+
+    const handleImageSearch = async (designNo: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row toggle
+        if (!designNo) return;
+
+        setSearchingImage(true);
+        setSearchQueryDebug(String(designNo));
+        try {
+            const result = await searchDesignImages(String(designNo), selectedFile || undefined);
+            if (result.images && result.images.length > 0) {
+                setImageResults(result.images);
+                setShowImageModal(true);
+                toast.success(`${result.images.length}件の画像が見つかりました`);
+            } else {
+                toast.error('画像が見つかりませんでした');
+                setImageResults([]);
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+            toast.error('画像検索中にエラーが発生しました');
+        } finally {
+            setSearchingImage(false);
+        }
+    };
 
     useEffect(() => {
         if (!selectedFile) return;
@@ -60,16 +91,16 @@ export default function DesignSearchPage() {
     }, [selectedFile]);
 
     const processDesignRequests = (data: Report[]): DesignRequest[] => {
-        const designMap = new Map<number, DesignRequest>();
+        const designMap = new Map<string, DesignRequest>();
 
         data.forEach(report => {
             const designNo = report['システム確認用デザインNo.'];
-            if (designNo && !isNaN(Number(designNo))) {
-                const numDesignNo = Number(designNo);
+            if (designNo) {
+                const strDesignNo = String(designNo).trim();
 
-                if (!designMap.has(numDesignNo)) {
-                    designMap.set(numDesignNo, {
-                        designNo: numDesignNo,
+                if (!designMap.has(strDesignNo)) {
+                    designMap.set(strDesignNo, {
+                        designNo: strDesignNo,
                         customerCode: String(report.得意先CD || ''),
                         customerName: String(report.訪問先名 || ''),
                         designProposal: String(report['デザイン提案有無'] || ''),
@@ -80,7 +111,7 @@ export default function DesignSearchPage() {
                     });
                 }
 
-                designMap.get(numDesignNo)!.requests.push(report);
+                designMap.get(strDesignNo)!.requests.push(report);
             }
         });
 
@@ -106,7 +137,7 @@ export default function DesignSearchPage() {
             if (dateCmp !== 0) return dateCmp;
 
             // 日付が同じ場合はデザインNo.の降順
-            return b.designNo - a.designNo;
+            return String(b.designNo).localeCompare(String(a.designNo), undefined, { numeric: true });
         });
 
         return requests;
@@ -197,7 +228,7 @@ export default function DesignSearchPage() {
         }
     }, [availableTypes, selectedType]);
 
-    const toggleRow = (designNo: number) => {
+    const toggleRow = (designNo: string) => {
         const newExpanded = new Set(expandedRows);
         if (newExpanded.has(designNo)) {
             newExpanded.delete(designNo);
@@ -362,7 +393,16 @@ export default function DesignSearchPage() {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 font-medium text-sf-light-blue">
-                                                    {req.designNo}
+                                                    <div className="flex items-center gap-2">
+                                                        {req.designNo}
+                                                        <button
+                                                            onClick={(e) => handleImageSearch(req.designNo, e)}
+                                                            className="p-1 rounded hover:bg-sf-light-blue/10 text-pink-500 transition-colors"
+                                                            title="関連画像を検索"
+                                                        >
+                                                            <ImageIcon size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-sf-text">{req.customerCode}</td>
                                                 <td className="px-4 py-3 text-sf-text font-medium">
@@ -479,6 +519,54 @@ export default function DesignSearchPage() {
                     </div>
                 )}
             </div>
-        </div >
+
+            {/* Image Search Result Modal */}
+            {showImageModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+                        <div className="p-4 border-b border-sf-border flex justify-between items-center bg-gray-50 rounded-t-lg">
+                            <h3 className="font-bold text-lg text-sf-text flex items-center gap-2">
+                                <Search size={20} className="text-pink-500" />
+                                検索結果: "{searchQueryDebug}" ({imageResults.length}件)
+                            </h3>
+                            <button
+                                onClick={() => setShowImageModal(false)}
+                                className="text-gray-500 hover:text-gray-700 bg-gray-200 rounded-full p-1"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1 bg-gray-100">
+                            {imageResults.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    {imageResults.map((img, i) => (
+                                        <div key={i} className="group relative bg-white rounded border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                            <a href={getImageUrl(img.path)} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden bg-gray-200">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={getImageUrl(img.path)}
+                                                    alt={img.name}
+                                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300"
+                                                    loading="lazy"
+                                                />
+                                            </a>
+                                            <div className="p-2 text-xs">
+                                                <div className="font-medium truncate text-sf-text" title={img.name}>{img.name}</div>
+                                                <div className="text-gray-400 truncate mt-0.5">{img.folder}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                                    <Search size={48} className="mb-4 text-gray-300" />
+                                    <p>画像が見つかりませんでした</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

@@ -126,3 +126,42 @@ export const getDesigns = async (customerCd: string, filename?: string): Promise
     const response = await axios.get(`${API_URL}/designs/${customerCd}`, { params });
     return response.data.designs;
 };
+
+// Image Interface
+export interface DesignImage {
+    name: string;
+    path: string;
+    folder: string;
+}
+
+export const getDesignImages = async (filename: string): Promise<{ images: DesignImage[], folder?: string, message?: string }> => {
+    try {
+        const response = await axios.get(`${API_URL}/images/list`, {
+            params: { filename }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching design images:', error);
+        return { images: [], message: 'Failed to fetch images' };
+    }
+};
+
+export const searchDesignImages = async (query: string, filename?: string): Promise<{ images: DesignImage[], query?: string, message?: string }> => {
+    try {
+        const params: any = { query };
+        if (filename) {
+            params.filename = filename;
+        }
+        const response = await axios.get(`${API_URL}/images/search`, {
+            params
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error searching design images:', error);
+        return { images: [], message: 'Failed to search images' };
+    }
+};
+
+export const getImageUrl = (path: string): string => {
+    return `${API_URL}/images/content?path=${encodeURIComponent(path)}`;
+};

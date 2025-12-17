@@ -17,6 +17,8 @@ interface EditReportModalProps {
 export default function EditReportModal({ report, onClose, onSuccess, selectedFile, setReports, reports }: EditReportModalProps) {
     const { isOnline, saveOfflineReport, cacheReports } = useOffline();
 
+
+
     // Parse initial time and clean content from 商談内容
     const parseInitialData = (content: string) => {
         if (!content) return { start: '', end: '', content: '', satisfaction: '' };
@@ -86,6 +88,10 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
         'コメント返信欄': report.コメント返信欄,
         '商談内容': report.商談内容
     }), [report]);
+
+
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -345,6 +351,8 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
                         )}
                     </div>
 
+
+
                     <div>
                         <label className="block text-sm font-medium text-sf-text mb-1">商談内容</label>
                         <textarea
@@ -446,6 +454,8 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
                     </div>
                 </form>
             </div>
+
+
         </div>
     );
 }

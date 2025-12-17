@@ -826,7 +826,275 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/images/list")
+def get_design_images(filename: str):
+    """
+    Get list of images from the matching folder in Design Data directory.
+    Target directory: \\Asahipack02\\社内書類ｎｅｗ\\01：部署別　営業部\\03：デザインデータ
+    Logic: Extract name from filename '...【Name】.xlsm' -> Search folder containing 'Name'
+    """
+    DESIGN_DIR = r"\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\03：デザインデータ"
+    
+    try:
+        # Extract name from filename (e.g., 本社009　2025年度用日報【沖本】.xlsm -> 沖本)
+        import re
+        match = re.search(r'【(.*?)】', filename)
+        if not match:
+            return {"message": "No name found in filename (expected '...【Name】.xlsm')", "images": []}
+            
+        target_name = match.group(1)
+        print(f"DEBUG: Searching for folder containing '{target_name}' in {DESIGN_DIR}")
+        
+        if not os.path.exists(DESIGN_DIR):
+             return {"message": "Design directory not found", "images": []}
+
+        # Find matching directory
+        matched_dir = None
+        for item in os.listdir(DESIGN_DIR):
+            if target_name in item and os.path.isdir(os.path.join(DESIGN_DIR, item)):
+                matched_dir = item
+                break
+        
+        if not matched_dir:
+            return {"message": f"No folder found for '{target_name}'", "images": []}
+            
+        target_path = os.path.join(DESIGN_DIR, matched_dir)
+        print(f"DEBUG: Found target folder: {target_path}")
+        
+        # List images (recursively or just top level? Starting with top level + shallow)
+        # Extensions to look for
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+        
+        image_files = []
+        for root, dirs, files in os.walk(target_path):
+            for file in files:
+                if file.lower().endswith(valid_extensions):
+                    # Create a relative path from DESIGN_DIR for the client to request
+                    # e.g., "大阪本社　09：沖本\image.jpg"
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, DESIGN_DIR)
+                    image_files.append({
+                        "name": file,
+                        "path": rel_path, # Path identifier to send back to serve endpoint
+                        "folder": matched_dir
+                    })
+            # Limit depth/count to avoid "too large" error? 
+            # User said "Selected data was too large", so maybe limit search depth or count.
+            # Let's start with just no limit but be mindful.
+            # Actually, os.walk goes deep. Let's limit to top level to be safe for now?
+            # Or maybe the user *wants* deep search.
+            # Let's cap at 100 images for safety.
+            if len(image_files) > 100:
+                break
+        
+        return {"images": image_files, "folder": matched_dir}
+
+    except Exception as e:
+        print(f"Error listing images: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/images/content")
+def serve_design_image(path: str):
+    """
+    Serve the image file content.
+    path: Relative path from DESIGN_DIR (e.g., "大阪本社　09：沖本\image.jpg")
+    """
+    DESIGN_DIR = r"\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\03：デザインデータ"
+    
+    try:
+        # Security check: Prevent directory traversal
+        # relpath needs to be safe. 
+        # Since we construct it ourselves in /images/list, it should be fine, but good to check.
+        safe_path = os.path.normpath(os.path.join(DESIGN_DIR, path))
+        
+        if not safe_path.startswith(DESIGN_DIR):
+            raise HTTPException(status_code=403, detail="Access denied")
+            
+        if not os.path.exists(safe_path):
+            raise HTTPException(status_code=404, detail="Image not found")
+            
+        from fastapi.responses import FileResponse
+        return FileResponse(safe_path)
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/images/search")
+def search_design_images(query: str, filename: Optional[str] = None):
+    """
+    Search for images matching the query (Design No) in the Design Data directory.
+    If filename is provided (e.g. '見上.xlsm'), it tries to find a matching user folder first (e.g. '08：見上').
+    Recursively searches subfolders.
+    """
+    DESIGN_DIR = r"\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\03：デザインデータ"
+    
+    if not query or len(query.strip()) < 2:
+        return {"message": "Query too short", "images": []}
+        
+    try:
+        if not os.path.exists(DESIGN_DIR):
+             return {"message": "Design directory not found", "images": []}
+
+        search_roots = [DESIGN_DIR]
+        
+        # Optimize: Try to find specific user folder based on filename
+        found_folder = None
+        if filename:
+            try:
+                # Extract name part
+                # 1. Try to extract from 【】
+                import re
+                match = re.search(r'【(.*?)】', filename)
+                if match:
+                    name_part = match.group(1)
+                else:
+                    # Fallback to removing extension
+                    name_part = os.path.splitext(os.path.basename(filename))[0]
+                
+                # print(f"DEBUG: Extracted Name: {name_part}") 
+
+                # Use scandir for better performance on network drive for top-level listing
+                with os.scandir(DESIGN_DIR) as it:
+                    for entry in it:
+                        # Match if the extracted name is in the folder name
+                        # e.g. "見上" in "大阪本社　08：見上"
+                        if entry.is_dir() and name_part in entry.name:
+                            found_folder = entry.path
+                            break
+                if found_folder:
+                    print(f"DEBUG: Search target set to: {found_folder}")
+                    search_roots = [found_folder]
+            except Exception as e:
+                print(f"Warning: Failed to optimize search folder: {e}")
+
+        
+        if found_folder:
+            search_roots = [found_folder]
+        else:
+            if filename:
+                 # print(f"WARN: Could not find user folder for {filename}. Aborting full scan to prevent timeout.")
+                 return {"message": "User folder not found from filename", "images": []}
+            
+            # If no filename provided, we search everything? That's dangerous too.
+            search_roots = [DESIGN_DIR]
+
+        image_files = []
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.pdf') 
+        
+        count = 0
+        MAX_RESULTS = 50
+        
+        # Helper for safer walking on finicky network drives
+        def safe_walk(directory, query_lower, extensions, max_depth=3, current_depth=0):
+            results = []
+            try:
+                # Use listdir instead of scandir/walk to avoid hanging
+                items = os.listdir(directory)
+            except Exception as e:
+                print(f"WARN: Failed to listdir {directory}: {e}")
+                return results
+
+            dirs_to_visit = []
+
+            for name in items:
+                full_path = os.path.join(directory, name)
+                
+                # Check file match first (fast string check)
+                name_lower = name.lower()
+                if query_lower in name_lower and name_lower.endswith(extensions):
+                    try:
+                        # Only checking isfile if it looks like a match to verify it's not a folder named 'x.jpg' (rare)
+                        # We can probably skip isfile check for speed if validation isn't critical,
+                        # but standard good practice is to check.
+                        # However, isfile() is a stat call. If we want speed, maybe skip?
+                        # Let's do it to be safe, but only on matches.
+                        if os.path.isfile(full_path):
+                            try:
+                                rel_path = os.path.relpath(full_path, DESIGN_DIR)
+                                folder_name = os.path.basename(directory)
+                                results.append({
+                                    "name": name,
+                                    "path": rel_path,
+                                    "folder": folder_name
+                                })
+                            except ValueError:
+                                pass
+                    except Exception:
+                        pass
+                
+                # Identify directories for recursion
+                if current_depth < max_depth:
+                    # HEURISTIC OPTIMIZATION:
+                    # Only recurse into folders that seemingly match the query OR if we are at root depth (0) and want to be a bit more generous?
+                    # Actually, for Morita with 1800 folders, we MUST filter.
+                    # If folder name contains query, good.
+                    # If not, skip?
+                    # Risk: Miss 'General/12345.jpg'.
+                    # User needs: 'search by design no'.
+                    # Design folders are usually named '12345-...'
+                    
+                    if query_lower not in name_lower and current_depth > 0:
+                         # Skip unrelated folders at depth > 0
+                         # Maybe strict filter even at depth 0?
+                         pass
+                    
+                    # For safety on massive folders, let's ONLY recurse if name matches query
+                    # UNLESS we are at root and want to checking if "General" folder exists?
+                    # Let's try strict filtering first.
+                    if query_lower not in name_lower:
+                        continue
+
+                    # If it matches our file extension filter, we already processed it as a file try above.
+                    # So we definitely don't need to check isdir for those.
+                    if '.' in name and not name.startswith('.'):
+                        continue # Skip isdir check for likely files
+                        
+                    try:
+                        if os.path.isdir(full_path):
+                            dirs_to_visit.append(full_path)
+                    except Exception:
+                        pass
+            
+            # Recurse
+            for subdir in dirs_to_visit:
+                 sub_results = safe_walk(subdir, query_lower, extensions, max_depth, current_depth + 1)
+                 results.extend(sub_results)
+                 if len(results) >= 50: # global max
+                     break
+            
+            return results
+
+        # Main search loop
+        try:
+            for search_root in search_roots:
+                print(f"DEBUG: Searching root: {search_root}", flush=True)
+                # Use custom walker
+                found_images = safe_walk(search_root, query.lower(), valid_extensions)
+                image_files.extend(found_images)
+                if len(image_files) >= MAX_RESULTS:
+                    image_files = image_files[:MAX_RESULTS]
+                    break
+        except Exception as e:
+            print(f"ERROR: Search loop failed: {e}", flush=True)
+            # Return whatever we found so far instead of 500
+            pass
+
+        return {"images": image_files, "query": query}
+
+    except Exception as e:
+        # print(f"Error searching images: {e}")
+        # Log to file safely if needed, or just return detailed 500
+        # Ensure 'e' conversion to string doesn't fail
+        error_msg = "Unknown error"
+        try:
+            error_msg = str(e)
+        except:
+            pass
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
+
+
 
