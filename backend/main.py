@@ -1044,21 +1044,29 @@ def search_design_images(query: str, filename: Optional[str] = None):
                          # AND we must skip "Specific" folders that don't match (e.g. "12345-1").
                          
                          # Heuristic:
-                         # 1. If folder name starts with a digit, assume it's a specific Design/Order folder.
+                         # 1. If folder name looks like a Design ID (5+ digits, maybe hyphens), assume it's Specific.
                          #    If query is NOT in it, SKIP.
-                         # 2. If folder name does NOT start with a digit, assume it's Generic.
-                         #    ENTER (to find subfolders that might match).
+                         # 2. Otherwise, assume it's Generic (e.g. "Data", "2025", "01_Sales").
+                         #    ENTER.
                          
-                         is_generic = True
-                         # Check if starts with digit
-                         if len(name) > 0 and name[0].isdigit():
-                             is_generic = False
-                        
-                         # Strict filter on "Specific" folders
-                         if not is_generic and query_lower not in name_lower:
+                         is_specific_id = False
+                         # Simple regex for design ID: typically 5-8 digits, optionally followed by hyphens/more digits
+                         # e.g. 117675, 117675-1, 101219-106074-3
+                         # But NOT "2025" (Year) or "01" (Section).
+                         # Let's say "Specific" if it has 5 or more consecutive digits.
+                         import re
+                         if re.search(r'\d{5,}', name):
+                             is_specific_id = True
+                         
+                         # Refinement: What if the query is SMALL? e.g. "555"?
+                         # The query is usually a Design No (5-6 digits).
+                         # If query is matches regex, it's specific.
+                         
+                         if is_specific_id and query_lower not in name_lower:
+                             # It looks like a DIFFERENT specific ID. Skip.
                              continue
                          
-                         # If it is generic, we continue down to find files or subfolders
+                         # If it is generic (not super long digits) OR it matched query, we enter.
                          pass
 
                     if '.' in name and not name.startswith('.'):
