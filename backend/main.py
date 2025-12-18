@@ -828,6 +828,17 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Set up logging
+import logging
+
+logging.basicConfig(
+    filename='debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    encoding='utf-8' # Ensure we can log Japanese characters
+)
+
 @app.get("/images/list")
 def get_design_images(filename: str):
     """
@@ -836,6 +847,8 @@ def get_design_images(filename: str):
     Logic: Extract name from filename '...【Name】.xlsm' -> Search folder containing 'Name'
     """
     DESIGN_DIR = r"\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\03：デザインデータ"
+    
+    logging.info(f"--- get_design_images called with filename: {filename} ---")
     
     try:
         # Extract name from filename (e.g., 本社009　2025年度用日報【沖本】.xlsm -> 沖本)
@@ -849,42 +862,67 @@ def get_design_images(filename: str):
 
         match = re.search(r'【(.*?)】', filename)
         if not match:
-            return {"message": "No name found in filename (expected '...【Name】.xlsm')", "images": []}
-            
-        target_name = match.group(1)
+            logging.warning("Regex match failed for filename")
+            # Fallback extraction?
+            target_name = os.path.splitext(os.path.basename(filename))[0]
+            logging.info(f"Fallback extracted name: {target_name}")
+        else:
+            target_name = match.group(1)
+            logging.info(f"Regex extracted name: {target_name}")
+
         normalized_target = normalize_text(target_name)
+        logging.info(f"Normalized target: {normalized_target}")
         
+        # Strip suffix
+        stripped_target = re.sub(r'(次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_target)
+        logging.info(f"Stripped target: {stripped_target}")
+
         print(f"DEBUG: Searching for folder containing '{target_name}' (Norm: {normalized_target}) in {DESIGN_DIR}")
         
         if not os.path.exists(DESIGN_DIR):
+             logging.error(f"Design directory not found: {DESIGN_DIR}")
              return {"message": "Design directory not found", "images": []}
 
         # Find matching directory
         matched_dir = None
         
+        try:
+            dir_list = os.listdir(DESIGN_DIR)
+            # logging.debug(f"Directory listing (first 5): {dir_list[:5]}")
+        except Exception as e:
+            logging.error(f"Failed to list directory: {e}")
+            return {"message": f"Failed to access design dir: {e}", "images": []}
+
         # 1. Try exact match (normalized)
-        for item in os.listdir(DESIGN_DIR):
-            if normalized_target in normalize_text(item) and os.path.isdir(os.path.join(DESIGN_DIR, item)):
+        for item in dir_list:
+            if not os.path.isdir(os.path.join(DESIGN_DIR, item)):
+                continue
+                
+            norm_item = normalize_text(item)
+            if normalized_target in norm_item:
                 matched_dir = item
+                logging.info(f"Match found (Normalized): {item}")
                 break
         
         # 2. If no match, try suffix stripping (e.g. 山下(和)次長 -> 山下(和))
         if not matched_dir:
-            # Remove common job titles from the END of the string
-            # (次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)
-            stripped_target = re.sub(r'(次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_target)
             if stripped_target != normalized_target:
-                 print(f"DEBUG: Retrying with stripped name: {stripped_target}")
-                 for item in os.listdir(DESIGN_DIR):
-                    if stripped_target in normalize_text(item) and os.path.isdir(os.path.join(DESIGN_DIR, item)):
+                 logging.info("Retrying with stripped name...")
+                 for item in dir_list:
+                    if not os.path.isdir(os.path.join(DESIGN_DIR, item)):
+                        continue
+                    norm_item = normalize_text(item)
+                    if stripped_target in norm_item:
                         matched_dir = item
+                        logging.info(f"Match found (Stripped): {item}")
                         break
         
         if not matched_dir:
+            logging.warning(f"No folder found for target: {normalized_target} / {stripped_target}")
             return {"message": f"No folder found for '{target_name}'", "images": []}
             
         target_path = os.path.join(DESIGN_DIR, matched_dir)
-        print(f"DEBUG: Found target folder: {target_path}")
+        logging.info(f"Target path: {target_path}")
         
         # List images (recursively or just top level? Starting with top level + shallow)
         # Extensions to look for
@@ -924,6 +962,7 @@ def get_design_images(filename: str):
         return {"images": image_files, "folder": matched_dir}
 
     except Exception as e:
+        logging.exception("Error in get_design_images")
         print(f"Error listing images: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -961,6 +1000,8 @@ def search_design_images(query: str, filename: Optional[str] = None):
     """
     DESIGN_DIR = r"\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\03：デザインデータ"
     
+    logging.info(f"--- search_design_images called. Query: {query}, Filename: {filename} ---")
+
     if not query or len(query.strip()) < 2:
         return {"message": "Query too short", "images": []}
         
@@ -996,7 +1037,7 @@ def search_design_images(query: str, filename: Optional[str] = None):
                 # Also prepare stripped version (remove suffix)
                 stripped_name = re.sub(r'(次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_name)
                 
-                # print(f"DEBUG: Extracted Name: {name_part} -> Norm: {normalized_name}") 
+                logging.info(f"Search optimization - Extracted: {name_part}, Norm: {normalized_name}, Stripped: {stripped_name}")
 
                 # Use scandir for better performance on network drive for top-level listing
                 with os.scandir(DESIGN_DIR) as it:
@@ -1006,24 +1047,28 @@ def search_design_images(query: str, filename: Optional[str] = None):
                             # Match if the extracted name (normalized) is in the folder name (normalized)
                             if normalized_name in norm_entry_name:
                                 found_folder = entry.path
+                                logging.info(f"Optimization - Found folder (Norm): {entry.name}")
                                 break
                             # If not found, try stripped name
                             if stripped_name != normalized_name and stripped_name in norm_entry_name:
                                 found_folder = entry.path
+                                logging.info(f"Optimization - Found folder (Stripped): {entry.name}")
                                 break
 
                 if found_folder:
                     print(f"DEBUG: Search target set to: {found_folder}")
                     search_roots = [found_folder]
             except Exception as e:
+                logging.error(f"Failed to optimize search folder: {e}")
                 print(f"Warning: Failed to optimize search folder: {e}")
-
+                
         
         if found_folder:
             search_roots = [found_folder]
         else:
             if filename:
                  # print(f"WARN: Could not find user folder for {filename}. Aborting full scan to prevent timeout.")
+                 logging.info("User folder not found from filename")
                  return {"message": "User folder not found from filename", "images": []}
             
             # If no filename provided, we search everything? That's dangerous too.
