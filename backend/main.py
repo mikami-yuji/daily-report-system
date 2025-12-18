@@ -898,10 +898,16 @@ def get_design_images(filename: str):
                     # e.g., "大阪本社　09：沖本\image.jpg"
                     full_path = os.path.join(root, file)
                     rel_path = os.path.relpath(full_path, DESIGN_DIR)
+                    try:
+                        mtime = os.path.getmtime(full_path)
+                    except:
+                        mtime = 0
+                    
                     image_files.append({
                         "name": file,
                         "path": rel_path, # Path identifier to send back to serve endpoint
-                        "folder": matched_dir
+                        "folder": matched_dir,
+                        "mtime": mtime
                     })
             # Limit depth/count to avoid "too large" error? 
             # User said "Selected data was too large", so maybe limit search depth or count.
@@ -911,6 +917,9 @@ def get_design_images(filename: str):
             # Let's cap at 100 images for safety.
             if len(image_files) > 100:
                 break
+        
+        # Sort by mtime descending (newest first)
+        image_files.sort(key=lambda x: x['mtime'], reverse=True)
         
         return {"images": image_files, "folder": matched_dir}
 
@@ -1057,10 +1066,15 @@ def search_design_images(query: str, filename: Optional[str] = None):
                             try:
                                 rel_path = os.path.relpath(full_path, DESIGN_DIR)
                                 folder_name = os.path.basename(directory)
+                                try:
+                                    mtime = os.path.getmtime(full_path)
+                                except:
+                                    mtime = 0
                                 results.append({
                                     "name": name,
                                     "path": rel_path,
-                                    "folder": folder_name
+                                    "folder": folder_name,
+                                    "mtime": mtime
                                 })
                             except ValueError:
                                 pass
@@ -1148,6 +1162,9 @@ def search_design_images(query: str, filename: Optional[str] = None):
             print(f"ERROR: Search loop failed: {e}", flush=True)
             # Return whatever we found so far instead of 500
             pass
+            
+        # Sort by mtime descending (newest first)
+        image_files.sort(key=lambda x: x['mtime'], reverse=True)
 
         return {"images": image_files, "query": query}
 

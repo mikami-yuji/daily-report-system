@@ -156,6 +156,38 @@ export default function Home() {
   // グラフ用データ (古い順)
   const chartData = [...sortedMonths].reverse();
 
+  // --- 得意先別活動ランキング集計 ---
+  const customerStatsMap = new Map<string, { name: string, visits: number, calls: number, total: number }>();
+
+  reports.forEach(report => {
+    const name = report.訪問先名 || '名称不明';
+    // 同じ名前で集計（コードが無くても名前で寄せる方針）
+    if (!customerStatsMap.has(name)) {
+      customerStatsMap.set(name, { name, visits: 0, calls: 0, total: 0 });
+    }
+    const stat = customerStatsMap.get(name)!;
+
+    let isActivity = false;
+    if (report.行動内容 && report.行動内容.includes('訪問')) {
+      stat.visits++;
+      isActivity = true;
+    }
+    if (report.行動内容 && report.行動内容.includes('電話')) {
+      stat.calls++;
+      isActivity = true;
+    }
+
+    if (isActivity) {
+      stat.total = stat.visits + stat.calls;
+    }
+  });
+
+  const topCustomers = Array.from(customerStatsMap.values())
+    .filter(c => c.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -204,15 +236,17 @@ export default function Home() {
         <Card title="累計電話件数" value={calls} icon={<Phone className="text-orange-500" />} />
       </div>
 
+
+      {/* グラフセクション: 上段 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* メイン: 月別活動推移グラフ */}
         <div className="lg:col-span-2 bg-white rounded border border-sf-border shadow-sm p-4">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="text-sf-light-blue" size={20} />
-            <h2 className="font-semibold text-lg text-sf-text">活動推移</h2>
+            <h2 className="font-semibold text-lg text-sf-text">活動推移 (月別)</h2>
           </div>
-          <div style={{ width: '100%', height: 256 }}>
-            <ResponsiveContainer width="100%" height={256}>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
@@ -229,7 +263,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* サイド: 重点顧客サマリー */}
+        {/* サイド: 重点顧客サマリー (既存維持) */}
         <div className="bg-white rounded border border-sf-border shadow-sm p-4">
           <div className="flex items-center gap-2 mb-4">
             <Star className="text-yellow-500" size={20} />
@@ -261,6 +295,41 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* グラフセクション: 中段 (得意先ランキング) */}
+      <div className="bg-white rounded border border-sf-border shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="text-sf-light-blue" size={20} />
+          <h2 className="font-semibold text-lg text-sf-text">得意先別 活動ランキング (Top 10)</h2>
+        </div>
+        <div style={{ width: '100%', height: 400 }}>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              layout="vertical"
+              data={topCustomers}
+              margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+              <XAxis type="number" tick={{ fontSize: 12 }} />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={150}
+                tick={{ fontSize: 11 }}
+                interval={0}
+              />
+              <Tooltip
+                cursor={{ fill: 'transparent' }}
+                contentStyle={{ backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ddd' }}
+                itemStyle={{ fontSize: '12px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <Bar dataKey="visits" name="訪問" fill="#8884d8" radius={[0, 4, 4, 0]} stackId="a" />
+              <Bar dataKey="calls" name="電話" fill="#82ca9d" radius={[0, 4, 4, 0]} stackId="a" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
