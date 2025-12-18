@@ -61,7 +61,7 @@ export default function CustomerList({ customers, loading, expandedRows, toggleR
                                 <td className="px-4 py-3 text-sf-text font-mono">{customer.code}</td>
                                 <td className="px-4 py-3">
                                     <Link
-                                        href={`/customers/${customer.code}`}
+                                        href={`/customers/detail?code=${customer.code}`}
                                         className="font-medium text-sf-light-blue hover:underline"
                                     >
                                         {customer.name}

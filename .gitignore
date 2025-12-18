@@ -50,3 +50,8 @@ test_python.py
 # User-specific configuration
 backend/config.json
 
+
+# Archives and Standalone Builds
+_archive/
+DailyReportSystem_Standalone/
+*.zip

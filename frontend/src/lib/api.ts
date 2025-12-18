@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = '/api';
+const API_URL = process.env.NODE_ENV === 'development' ? '/api' : '';
 
 export interface Report {
     管理番号: number;

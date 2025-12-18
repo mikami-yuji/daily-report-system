@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 import pandas as pd
@@ -95,7 +97,7 @@ class ReportInput(BaseModel):
             return ""
         return str(v)
 
-@app.get("/")
+@app.get("/health")
 def read_root():
     return {"message": "Daily Report API is running", "excel_dir": EXCEL_DIR}
 
@@ -863,7 +865,7 @@ def get_design_images(filename: str):
         
         # List images (recursively or just top level? Starting with top level + shallow)
         # Extensions to look for
-        valid_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.pdf')
         
         image_files = []
         for root, dirs, files in os.walk(target_path):
@@ -1119,6 +1121,38 @@ def search_design_images(query: str, filename: Optional[str] = None):
             pass
         raise HTTPException(status_code=500, detail=error_msg)
 
+
+# --- Static File Serving for Standalone App ---
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+if os.path.exists(STATIC_DIR):
+    # Mount _next directory for Next.js assets
+    # Check if _next exists inside static to avoid error
+    if os.path.join(STATIC_DIR, "_next"):
+         app.mount("/_next", StaticFiles(directory=os.path.join(STATIC_DIR, "_next")), name="next_assets")
+
+    @app.get("/")
+    async def serve_index():
+        index_path = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return {"message": "Daily Report System API (Static files not found)"}
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Check if file exists in static dir
+        file_path = os.path.join(STATIC_DIR, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        
+        # If not found, and path doesn't look like api, return index.html for SPA routing
+        # (API routes are already handled by precedence)
+        index_path = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+             return FileResponse(index_path)
+        
+        return {"detail": "Not Found"}
+# ----------------------------------------------
 
 if __name__ == "__main__":
     import uvicorn

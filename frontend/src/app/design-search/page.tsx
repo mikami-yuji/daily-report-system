@@ -539,23 +539,33 @@ export default function DesignSearchPage() {
                         <div className="p-4 overflow-y-auto flex-1 bg-gray-100">
                             {imageResults.length > 0 ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                    {imageResults.map((img, i) => (
-                                        <div key={i} className="group relative bg-white rounded border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                                            <a href={getImageUrl(img.path)} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden bg-gray-200">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={getImageUrl(img.path)}
-                                                    alt={img.name}
-                                                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300"
-                                                    loading="lazy"
-                                                />
-                                            </a>
-                                            <div className="p-2 text-xs">
-                                                <div className="font-medium truncate text-sf-text" title={img.name}>{img.name}</div>
-                                                <div className="text-gray-400 truncate mt-0.5">{img.folder}</div>
+                                    {imageResults.map((img, i) => {
+                                        const isPdf = img.name.toLowerCase().endsWith('.pdf');
+                                        return (
+                                            <div key={i} className="group relative bg-white rounded border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                                <a href={getImageUrl(img.path)} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden bg-gray-200 flex items-center justify-center">
+                                                    {isPdf ? (
+                                                        <div className="flex flex-col items-center justify-center text-red-500">
+                                                            <FileText size={48} />
+                                                            <span className="text-xs font-bold mt-2 text-gray-500">PDF</span>
+                                                        </div>
+                                                    ) : (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img
+                                                            src={getImageUrl(img.path)}
+                                                            alt={img.name}
+                                                            className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300"
+                                                            loading="lazy"
+                                                        />
+                                                    )}
+                                                </a>
+                                                <div className="p-2 text-xs">
+                                                    <div className="font-medium truncate text-sf-text" title={img.name}>{img.name}</div>
+                                                    <div className="text-gray-400 truncate mt-0.5">{img.folder}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-64 text-gray-500">
