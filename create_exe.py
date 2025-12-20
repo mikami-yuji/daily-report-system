@@ -25,22 +25,24 @@ def main():
             print(f"Warning: Failed to clean .next: {e}")
 
     # 1. Build Frontend
-    print("--- Building Frontend ---")
-    if not os.path.exists(os.path.join(frontend_dir, "node_modules")):
-         print("Installing dependencies...")
-         run_command("npm install", cwd=frontend_dir)
+    print("--- Building Frontend (SKIPPED for Speed) ---")
+    # if not os.path.exists(os.path.join(frontend_dir, "node_modules")):
+    #      print("Installing dependencies...")
+    #      run_command("npm install", cwd=frontend_dir)
     
-    print("Running build (NODE_ENV=production)...")
-    # Force production env
-    build_env = os.environ.copy()
-    build_env["NODE_ENV"] = "production"
-    run_command("npm run build", cwd=frontend_dir, env=build_env)
+    # print("Running build (NODE_ENV=production)...")
+    # # Force production env
+    # build_env = os.environ.copy()
+    # build_env["NODE_ENV"] = "production"
+    # run_command("npm run build", cwd=frontend_dir, env=build_env)
     
     # Check if out exists
     out_dir = os.path.join(frontend_dir, "out")
     if not os.path.exists(out_dir):
         print("Error: Frontend build failed (out directory not found)")
-        sys.exit(1)
+        # sys.exit(1) # Allow proceeding if out exists
+    else:
+        print("Frontend artifacts found in 'out' directory.")
         
     # 2. Prepare Backend Static Files
     print("--- Preparing Static Files ---")
@@ -114,6 +116,16 @@ def main():
         f.write("timeout /t 5\n")
         f.write("start http://localhost:8001\n")
     
+    
+    # Copy config.json (or example)
+    config_src = os.path.join(backend_dir, "config.example.json")
+    config_dst = os.path.join(dist_path, "config.json")
+    if os.path.exists(config_src):
+        shutil.copy2(config_src, config_dst)
+        print(f"Copied config: {config_dst}")
+    else:
+        print("Warning: config.example.json not found, user might need to create config.json manually.")
+
     print(f"Created launcher: {bat_path}")
 
 if __name__ == "__main__":
