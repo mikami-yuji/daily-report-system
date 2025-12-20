@@ -3,9 +3,9 @@ import subprocess
 import shutil
 import sys
 
-def run_command(command, cwd=None):
+def run_command(command, cwd=None, env=None):
     print(f"Running: {command}")
-    result = subprocess.run(command, shell=True, cwd=cwd)
+    result = subprocess.run(command, shell=True, cwd=cwd, env=env)
     if result.returncode != 0:
         print(f"Error running command: {command}")
         sys.exit(1)
@@ -30,8 +30,11 @@ def main():
          print("Installing dependencies...")
          run_command("npm install", cwd=frontend_dir)
     
-    print("Running build...")
-    run_command("npm run build", cwd=frontend_dir)
+    print("Running build (NODE_ENV=production)...")
+    # Force production env
+    build_env = os.environ.copy()
+    build_env["NODE_ENV"] = "production"
+    run_command("npm run build", cwd=frontend_dir, env=build_env)
     
     # Check if out exists
     out_dir = os.path.join(frontend_dir, "out")

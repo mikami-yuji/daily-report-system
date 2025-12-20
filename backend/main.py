@@ -850,77 +850,105 @@ def get_design_images(filename: str):
     
     logging.info(f"--- get_design_images called with filename: {filename} ---")
     
-    try:
-        # Extract name from filename (e.g., 本社009　2025年度用日報【沖本】.xlsm -> 沖本)
-        import re
-        # Helper for normalization
-        def normalize_text(text):
-            # Convert full-width parens and space to half-width
-            text = text.replace('（', '(').replace('）', ')').replace('　', ' ')
-            # Strip whitespace
-            return text.strip()
+    # 0. 手動マッピングチェック
+    # 特定のファイル名を特定のフォルダ名または検索語句にマッピング
+    FOLDER_MAPPING = {
+        # 正確なファイル名 -> 正確なターゲットフォルダ名（または検索する部分文字列）
+        "本社006　2025年度用日報【木村（拓）MGR】.xlsm": "大阪本社　05：木村（拓）",
+    }
+    
+    matched_dir = None
 
-        match = re.search(r'【(.*?)】', filename)
-        if not match:
-            logging.warning("Regex match failed for filename")
-            # Fallback extraction?
-            target_name = os.path.splitext(os.path.basename(filename))[0]
-            logging.info(f"Fallback extracted name: {target_name}")
+    if filename in FOLDER_MAPPING:
+        mapped_target = FOLDER_MAPPING[filename]
+        logging.info(f"Manual mapping found for {filename}: {mapped_target}")
+        
+        # マッピングされたディレクトリが存在するか確認
+        path_check = os.path.join(DESIGN_DIR, mapped_target)
+        if os.path.isdir(path_check):
+            matched_dir = mapped_target
+            logging.info(f"Mapped directory verified: {matched_dir}")
         else:
-            target_name = match.group(1)
-            logging.info(f"Regex extracted name: {target_name}")
-
-        normalized_target = normalize_text(target_name)
-        logging.info(f"Normalized target: {normalized_target}")
-        
-        # Strip suffix
-        stripped_target = re.sub(r'(次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_target)
-        logging.info(f"Stripped target: {stripped_target}")
-
-        print(f"DEBUG: Searching for folder containing '{target_name}' (Norm: {normalized_target}) in {DESIGN_DIR}")
-        
-        if not os.path.exists(DESIGN_DIR):
-             logging.error(f"Design directory not found: {DESIGN_DIR}")
-             return {"message": "Design directory not found", "images": []}
-
-        # Find matching directory
-        matched_dir = None
-        
+             logging.warning(f"Mapped directory not found: {path_check}")
+             # 通常の検索にフォールバックするか失敗させるか？ここではフォールバックします。
+    
+    if not matched_dir:
         try:
-            dir_list = os.listdir(DESIGN_DIR)
-            # logging.debug(f"Directory listing (first 5): {dir_list[:5]}")
-        except Exception as e:
-            logging.error(f"Failed to list directory: {e}")
-            return {"message": f"Failed to access design dir: {e}", "images": []}
+            # Extract name from filename (e.g., 本社009　2025年度用日報【沖本】.xlsm -> 沖本)
+            import re
+            # Helper for normalization
+            def normalize_text(text):
+                # Convert full-width parens and space to half-width
+                text = text.replace('（', '(').replace('）', ')').replace('　', ' ')
+                # Strip whitespace
+                return text.strip()
 
-        # 1. Try exact match (normalized)
-        for item in dir_list:
-            if not os.path.isdir(os.path.join(DESIGN_DIR, item)):
-                continue
-                
-            norm_item = normalize_text(item)
-            if normalized_target in norm_item:
-                matched_dir = item
-                logging.info(f"Match found (Normalized): {item}")
-                break
-        
-        # 2. If no match, try suffix stripping (e.g. 山下(和)次長 -> 山下(和))
-        if not matched_dir:
-            if stripped_target != normalized_target:
-                 logging.info("Retrying with stripped name...")
-                 for item in dir_list:
-                    if not os.path.isdir(os.path.join(DESIGN_DIR, item)):
-                        continue
-                    norm_item = normalize_text(item)
-                    if stripped_target in norm_item:
-                        matched_dir = item
-                        logging.info(f"Match found (Stripped): {item}")
-                        break
-        
-        if not matched_dir:
-            logging.warning(f"No folder found for target: {normalized_target} / {stripped_target}")
-            return {"message": f"No folder found for '{target_name}'", "images": []}
+            match = re.search(r'【(.*?)】', filename)
+            if not match:
+                logging.warning("Regex match failed for filename")
+                # Fallback extraction?
+                target_name = os.path.splitext(os.path.basename(filename))[0]
+                logging.info(f"Fallback extracted name: {target_name}")
+            else:
+                target_name = match.group(1)
+                logging.info(f"Regex extracted name: {target_name}")
+
+            normalized_target = normalize_text(target_name)
+            logging.info(f"Normalized target: {normalized_target}")
             
+            # 接尾辞を削除
+            # MGR/Mgr をリストに追加
+            stripped_target = re.sub(r'(MGR|Mgr|次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_target, flags=re.IGNORECASE)
+            logging.info(f"Stripped target: {stripped_target}")
+
+            print(f"DEBUG: Searching for folder containing '{target_name}' (Norm: {normalized_target}) in {DESIGN_DIR}")
+            
+            if not os.path.exists(DESIGN_DIR):
+                 logging.error(f"Design directory not found: {DESIGN_DIR}")
+                 return {"message": "Design directory not found", "images": []}
+
+            # Find matching directory
+            
+            try:
+                dir_list = os.listdir(DESIGN_DIR)
+                # logging.debug(f"Directory listing (first 5): {dir_list[:5]}")
+            except Exception as e:
+                logging.error(f"Failed to list directory: {e}")
+                return {"message": f"Failed to access design dir: {e}", "images": []}
+
+            # 1. Try exact match (normalized)
+            for item in dir_list:
+                if not os.path.isdir(os.path.join(DESIGN_DIR, item)):
+                    continue
+                    
+                norm_item = normalize_text(item)
+                if normalized_target in norm_item:
+                    matched_dir = item
+                    logging.info(f"Match found (Normalized): {item}")
+                    break
+            
+            # 2. If no match, try suffix stripping (e.g. 山下(和)次長 -> 山下(和))
+            if not matched_dir:
+                if stripped_target != normalized_target:
+                     logging.info("Retrying with stripped name...")
+                     for item in dir_list:
+                        if not os.path.isdir(os.path.join(DESIGN_DIR, item)):
+                            continue
+                        norm_item = normalize_text(item)
+                        if stripped_target in norm_item:
+                            matched_dir = item
+                            logging.info(f"Match found (Stripped): {item}")
+                            break
+            
+            if not matched_dir:
+                logging.warning(f"No folder found for target: {normalized_target} / {stripped_target}")
+                return {"message": f"No folder found for '{target_name}'", "images": []}
+                
+        except Exception as e:
+             logging.error(f"Error during folder search logic: {e}")
+             raise HTTPException(status_code=500, detail=str(e))
+            
+    try:
         target_path = os.path.join(DESIGN_DIR, matched_dir)
         logging.info(f"Target path: {target_path}")
         
@@ -947,12 +975,6 @@ def get_design_images(filename: str):
                         "folder": matched_dir,
                         "mtime": mtime
                     })
-            # Limit depth/count to avoid "too large" error? 
-            # User said "Selected data was too large", so maybe limit search depth or count.
-            # Let's start with just no limit but be mindful.
-            # Actually, os.walk goes deep. Let's limit to top level to be safe for now?
-            # Or maybe the user *wants* deep search.
-            # Let's cap at 100 images for safety.
             if len(image_files) > 100:
                 break
         
@@ -1029,13 +1051,13 @@ def search_design_images(query: str, filename: Optional[str] = None):
                 if match:
                     name_part = match.group(1)
                 else:
-                    # Fallback to removing extension
+                    # 拡張子削除にフォールバック
                     name_part = os.path.splitext(os.path.basename(filename))[0]
                 
-                # Normalize name part
+                # 名前部分を正規化
                 normalized_name = normalize_text(name_part)
-                # Also prepare stripped version (remove suffix)
-                stripped_name = re.sub(r'(次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_name)
+                # 接尾辞（サフィックス）を削除したバージョンも用意
+                stripped_name = re.sub(r'(MGR|Mgr|次長|課長|部長|係長|主任|担当|顧問|専務|常務|社長)$', '', normalized_name, flags=re.IGNORECASE)
                 
                 logging.info(f"Search optimization - Extracted: {name_part}, Norm: {normalized_name}, Stripped: {stripped_name}")
 
@@ -1044,12 +1066,12 @@ def search_design_images(query: str, filename: Optional[str] = None):
                     for entry in it:
                         if entry.is_dir():
                             norm_entry_name = normalize_text(entry.name)
-                            # Match if the extracted name (normalized) is in the folder name (normalized)
+                            # 抽出された名前（正規化済み）がフォルダ名（正規化済み）に含まれているか確認
                             if normalized_name in norm_entry_name:
                                 found_folder = entry.path
                                 logging.info(f"Optimization - Found folder (Norm): {entry.name}")
                                 break
-                            # If not found, try stripped name
+                            # 見つからない場合、接尾辞なしの名前を試す
                             if stripped_name != normalized_name and stripped_name in norm_entry_name:
                                 found_folder = entry.path
                                 logging.info(f"Optimization - Found folder (Stripped): {entry.name}")
