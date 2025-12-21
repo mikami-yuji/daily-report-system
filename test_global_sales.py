@@ -35,10 +35,22 @@ try:
     print(f"Get Body: {res.text}")
     
     data = res.json()
-    if data.get('found') == True and data.get('sales_amount') == 999999:
+    data = res.json()
+    
+    expected_fields = ["found", "rank", "sales_amount", "gross_profit", "sales_yoy", "sales_last_year", "profit_last_year", "sales_2y_ago", "profit_2y_ago", "customer_name", "updated_at"]
+    missing_fields = [f for f in expected_fields if f not in data]
+    
+    if missing_fields:
+        print(f"TEST FAILED: Missing fields: {missing_fields}")
+        sys.exit(1)
+
+    if (data.get('found') == True and 
+        data.get('sales_amount') == 999999 and 
+        data.get('sales_last_year') == 888888 and
+        data.get('profit_last_year') == 222222):
         print("TEST PASSED: Global sales data integration works.")
     else:
-        print("TEST FAILED: Data mismatch or not found.")
+        print(f"TEST FAILED: Data mismatch. Got: {data}")
         sys.exit(1)
 
 except Exception as e:

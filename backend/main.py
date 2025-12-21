@@ -1408,6 +1408,8 @@ async def get_sales_data(customer_code: str):
             "sales_amount": get_val('売上金額'),
             "gross_profit": get_val('粗利金額'),
             "sales_yoy": get_val('前年対比率'),
+            "sales_last_year": get_val('前年売上'),
+            "profit_last_year": get_val('前年粗利'),
             "sales_2y_ago": get_val('前々年売上'),
             "profit_2y_ago": get_val('前々年粗利'),
             "customer_name": get_val('得意先名称'),

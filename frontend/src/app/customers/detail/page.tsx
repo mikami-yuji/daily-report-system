@@ -40,6 +40,8 @@ interface SalesData {
     sales_amount?: string | number;
     gross_profit?: string | number;
     sales_yoy?: string | number;
+    sales_last_year?: string | number;
+    profit_last_year?: string | number;
     sales_2y_ago?: string | number;
     profit_2y_ago?: string | number;
     customer_name?: string;
@@ -641,7 +643,24 @@ function CustomerDetailContent() {
                                                 <span className="text-sm font-normal ml-1">円</span>
                                             </span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4 mt-4 pt-2">
+                                        <div className="grid grid-cols-2 gap-4 mt-4 pt-2 border-t border-gray-100">
+                                            <div className="text-right">
+                                                <p className="text-xs text-sf-text-weak">前年売上</p>
+                                                <p className="font-medium text-gray-700">
+                                                    {Number(salesData.sales_last_year || 0).toLocaleString()}円
+                                                </p>
+                                                <p className="text-xs text-blue-600 mt-1">
+                                                    対比: {salesData.sales_yoy ? `${salesData.sales_yoy}%` : '-'}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-sf-text-weak">前年粗利</p>
+                                                <p className="font-medium text-gray-700">
+                                                    {Number(salesData.profit_last_year || 0).toLocaleString()}円
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-2 pt-2 border-t border-dashed border-gray-200">
                                             <div className="text-right">
                                                 <p className="text-xs text-sf-text-weak">前々年売上</p>
                                                 <p className="font-medium text-gray-500">
