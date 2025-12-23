@@ -2,17 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { getReports, Report } from '@/lib/api';
+import { useFile } from '@/context/FileContext';
 import { Search, Calendar, User, Building2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ComplaintsPage() {
+    const { selectedFile, isLoadingFiles } = useFile();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredReports, setFilteredReports] = useState<Report[]>([]);
 
     useEffect(() => {
-        getReports().then(data => {
+        if (!selectedFile || isLoadingFiles) return;
+
+        getReports(selectedFile).then(data => {
             // クレーム関連のレポートを抽出（行動内容または商談内容に「クレーム」を含む）
             const complaintReports = data.filter(r =>
                 (r.行動内容 && String(r.行動内容).includes('クレーム')) ||
@@ -33,7 +37,7 @@ export default function ComplaintsPage() {
             console.error(err);
             setLoading(false);
         });
-    }, []);
+    }, [selectedFile, isLoadingFiles]);
 
     useEffect(() => {
         if (searchTerm.trim() === '') {

@@ -53,7 +53,7 @@ export default function Header() {
                         onChange={(e) => setSelectedFile(e.target.value)}
                         className="bg-transparent text-sm text-sf-text focus:outline-none w-full cursor-pointer"
                     >
-                        {files.map((file) => (
+                        {(files || []).map((file) => (
                             <option key={file.name} value={file.name}>
                                 {file.name}
                             </option>

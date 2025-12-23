@@ -50,6 +50,10 @@ export const getFiles = async (): Promise<{ files: ExcelFile[]; default: string 
 export const getReports = async (filename?: string): Promise<Report[]> => {
     const params = filename ? { filename } : {};
     const response = await axios.get(`${API_URL}/reports`, { params });
+    if (!Array.isArray(response.data)) {
+        console.warn('getReports received non-array data:', response.data);
+        return [];
+    }
     return response.data;
 };
 
