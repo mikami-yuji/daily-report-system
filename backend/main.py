@@ -1384,6 +1384,42 @@ async def upload_sales_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
+@app.get("/sales/all")
+async def get_all_sales_data():
+    """
+    Retrieves ALL sales data as a list.
+    """
+    if global_sales_df is None:
+        return []
+
+    try:
+        # Convert NaN to None for JSON compliance
+        df_clean = global_sales_df.where(pd.notnull(global_sales_df), None)
+        
+        # Select relevant columns and rename for consistency
+        records = []
+        for _, row in df_clean.iterrows():
+            records.append({
+                "rank": row.get('順位'),
+                "rank_class": row.get('ランク'),
+                "customer_code": row.get('得意先コード'),
+                "customer_name": row.get('得意先名称'),
+                "sales_amount": row.get('売上金額'),
+                "gross_profit": row.get('粗利金額'),
+                "sales_yoy": row.get('前年対比率'),
+                "sales_last_year": row.get('前年売上'),
+                "profit_last_year": row.get('前年粗利'),
+                "sales_2y_ago": row.get('前々年売上'),
+                "profit_2y_ago": row.get('前々年粗利'),
+            })
+            
+        return records
+
+    except Exception as e:
+        logging.error(f"Error retrieving all sales data: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving data: {str(e)}")
+
+
 @app.get("/sales/{customer_code}")
 async def get_sales_data(customer_code: str):
     """

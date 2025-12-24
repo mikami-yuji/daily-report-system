@@ -169,3 +169,32 @@ export const searchDesignImages = async (query: string, filename?: string): Prom
 export const getImageUrl = (path: string): string => {
     return `${API_URL}/images/content?path=${encodeURIComponent(path)}`;
 };
+// ... existing exports ...
+
+export interface SalesData {
+    rank: number;
+    rank_class: string;
+    customer_code: string;
+    customer_name: string;
+    sales_amount: number;
+    gross_profit: number;
+    sales_yoy: number;
+    sales_last_year: number;
+    profit_last_year: number;
+    sales_2y_ago: number;
+    profit_2y_ago: number;
+}
+
+export const getAllSales = async (): Promise<SalesData[]> => {
+    try {
+        const response = await axios.get(`${API_URL}/sales/all`);
+        if (!Array.isArray(response.data)) {
+            console.warn('getAllSales received non-array data:', response.data);
+            return [];
+        }
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching all sales data:', error);
+        return [];
+    }
+};
