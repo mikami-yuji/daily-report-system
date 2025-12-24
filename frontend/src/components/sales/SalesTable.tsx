@@ -49,6 +49,7 @@ export default function SalesTable({ data, sortField, sortDirection, onSort }: S
                             <HeaderCell field="rank_class" label="ランク" align="center" />
                             <HeaderCell field="customer_code" label="CD" />
                             <HeaderCell field="customer_name" label="得意先名" />
+                            <HeaderCell field="area" label="エリア" />
                             <HeaderCell field="sales_amount" label="売上金額" align="right" />
                             <HeaderCell field="gross_profit" label="粗利金額" align="right" />
                             <HeaderCell field="sales_yoy" label="前年比" align="right" />
@@ -69,6 +70,7 @@ export default function SalesTable({ data, sortField, sortDirection, onSort }: S
                                 </td>
                                 <td className="px-4 py-3 font-mono text-xs text-sf-text-weak">{row.customer_code}</td>
                                 <td className="px-4 py-3 font-medium text-sf-text">{row.customer_name}</td>
+                                <td className="px-4 py-3 text-sf-text">{row.area || '-'}</td>
                                 <td className="px-4 py-3 text-right font-mono font-medium text-sf-text">
                                     {formatCurrency(row.sales_amount)}
                                 </td>
@@ -78,8 +80,8 @@ export default function SalesTable({ data, sortField, sortDirection, onSort }: S
                                 <td className="px-4 py-3 text-right font-mono font-medium">
                                     {row.sales_yoy ? (
                                         <span className={`${row.sales_yoy >= 105 ? 'text-green-600 bg-green-50 px-1.5 py-0.5 rounded' :
-                                                row.sales_yoy < 95 ? 'text-red-500 bg-red-50 px-1.5 py-0.5 rounded' :
-                                                    'text-sf-text'
+                                            row.sales_yoy < 95 ? 'text-red-500 bg-red-50 px-1.5 py-0.5 rounded' :
+                                                'text-sf-text'
                                             }`}>
                                             {formatPercent(row.sales_yoy)}
                                         </span>

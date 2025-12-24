@@ -183,6 +183,7 @@ export interface SalesData {
     profit_last_year: number;
     sales_2y_ago: number;
     profit_2y_ago: number;
+    area?: string;
 }
 
 export const getAllSales = async (): Promise<SalesData[]> => {

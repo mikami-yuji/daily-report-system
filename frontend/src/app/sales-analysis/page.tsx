@@ -18,19 +18,44 @@ export default function SalesAnalysisPage() {
         loadData();
     }, []);
 
+    const extractPrefecture = (address: string | null | undefined): string | undefined => {
+        if (!address) return undefined;
+        // Match up to the first occurrence of To, Do, Fu, Ken
+        const match = address.match(/^.*?[都道府県]/);
+        return match ? match[0] : address;
+    };
+
     const loadData = async () => {
         setLoading(true);
         const data = await getAllSales();
-        setSalesData(data);
+        // Transform area to prefecture only
+        const processedData = data.map(item => ({
+            ...item,
+            area: extractPrefecture(item.area)
+        }));
+        setSalesData(processedData);
         setLoading(false);
     };
+
+    const [filterRank, setFilterRank] = useState('all');
+    const [filterArea, setFilterArea] = useState('all');
+
+    const uniqueRanks = useMemo(() => {
+        const ranks = new Set(salesData.map(d => d.rank_class).filter(Boolean));
+        return Array.from(ranks).sort();
+    }, [salesData]);
+
+    const uniqueAreas = useMemo(() => {
+        const areas = new Set(salesData.map(d => d.area).filter(d => d && d !== 'null' && d !== 'None'));
+        return Array.from(areas).sort();
+    }, [salesData]);
 
     const handleSort = (field: keyof SalesData) => {
         if (sortField === field) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
         } else {
             setSortField(field);
-            setSortDirection('desc'); // Default to descending for new field (useful for numbers)
+            setSortDirection('desc');
         }
     };
 
@@ -39,6 +64,13 @@ export default function SalesAnalysisPage() {
         let result = [...salesData];
 
         // Filter
+        if (filterRank !== 'all') {
+            result = result.filter(item => item.rank_class === filterRank);
+        }
+        if (filterArea !== 'all') {
+            result = result.filter(item => item.area === filterArea);
+        }
+
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             result = result.filter(item =>
@@ -52,7 +84,6 @@ export default function SalesAnalysisPage() {
             const valA = a[sortField];
             const valB = b[sortField];
 
-            // Handle null/undefined (always put at bottom)
             if (valA === null || valA === undefined) return 1;
             if (valB === null || valB === undefined) return -1;
 
@@ -61,11 +92,8 @@ export default function SalesAnalysisPage() {
             return 0;
         });
 
-        // Add visual ranking after sort? No, keep original ranking intact.
-        // Or if sorted by something else, the "rank" column stays fixed? Column stays fixed.
-
         return result;
-    }, [salesData, searchTerm, sortField, sortDirection]);
+    }, [salesData, searchTerm, sortField, sortDirection, filterRank, filterArea]);
 
     return (
         <div className="space-y-6">
@@ -88,8 +116,9 @@ export default function SalesAnalysisPage() {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-4 rounded-lg border border-sf-border shadow-sm flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
+            <div className="bg-white p-4 rounded-lg border border-sf-border shadow-sm flex flex-wrap items-center gap-4">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
@@ -99,8 +128,38 @@ export default function SalesAnalysisPage() {
                         className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue/20 transition-all"
                     />
                 </div>
-                <div className="text-sm text-gray-500">
-                    {filteredAndSortedData.length} 件 表示中
+
+                {/* Rank Filter */}
+                <select
+                    value={filterRank}
+                    onChange={(e) => setFilterRank(e.target.value)}
+                    className="border border-sf-border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-sf-light-blue/20"
+                >
+                    <option value="all">全ランク</option>
+                    {uniqueRanks.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                    ))}
+                </select>
+
+                {/* Area Filter */}
+                <select
+                    value={filterArea}
+                    onChange={(e) => setFilterArea(e.target.value)}
+                    className="border border-sf-border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-sf-light-blue/20"
+                    disabled={uniqueAreas.length === 0}
+                >
+                    <option value="all">全エリア</option>
+                    {uniqueAreas.length > 0 ? (
+                        uniqueAreas.map(a => (
+                            <option key={a} value={a}>{a}</option>
+                        ))
+                    ) : (
+                        <option disabled>エリア情報なし</option>
+                    )}
+                </select>
+
+                <div className="text-sm text-gray-500 whitespace-nowrap">
+                    {filteredAndSortedData.length} 件
                 </div>
             </div>
 

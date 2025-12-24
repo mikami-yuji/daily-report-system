@@ -1411,6 +1411,8 @@ async def get_all_sales_data():
                 "profit_last_year": row.get('前年粗利'),
                 "sales_2y_ago": row.get('前々年売上'),
                 "profit_2y_ago": row.get('前々年粗利'),
+                # Attempt to get area from '地域名称' or '地域' or Column M (index 12)
+                "area": row.get('地域名称') or row.get('地域') or (row.iloc[12] if len(row) > 12 else None),
             })
             
         return records
