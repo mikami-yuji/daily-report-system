@@ -1353,7 +1353,7 @@ def load_sales_data():
 # Load on startup
 load_sales_data()
 
-@app.post("/api/sales/upload")
+@app.post("/sales/upload")
 async def upload_sales_csv(file: UploadFile = File(...)):
     """
     Uploads a global sales data CSV file, saves it, and unloads it into memory.
@@ -1384,7 +1384,7 @@ async def upload_sales_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@app.get("/api/sales/{customer_code}")
+@app.get("/sales/{customer_code}")
 async def get_sales_data(customer_code: str):
     """
     Retrieves sales data for a specific customer from the global dataset.
