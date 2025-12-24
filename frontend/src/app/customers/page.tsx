@@ -19,6 +19,7 @@ export default function CustomersPage() {
     const [selectedRank, setSelectedRank] = useState('');
     const [isPriorityOnly, setIsPriorityOnly] = useState(false);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (!selectedFile) return;
@@ -106,6 +107,7 @@ export default function CustomersPage() {
         }
 
         setFilteredCustomers(result);
+        setCurrentPage(1);
     }, [searchTerm, selectedArea, selectedRank, isPriorityOnly, customers]);
 
     // Unique Areas and Ranks for dropdowns
@@ -140,16 +142,48 @@ export default function CustomersPage() {
 
             {/* 得意先一覧テーブル */}
             <div className="bg-white rounded border border-sf-border shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-sf-border bg-gray-50">
-                    <h2 className="font-semibold text-sm text-sf-text">得意先一覧</h2>
+                <div className="px-4 py-3 border-b border-sf-border bg-gray-50 flex justify-between items-center">
+                    <h2 className="font-semibold text-sm text-sf-text">得意先一覧 ({filteredCustomers.length}件)</h2>
+                    <span className="text-xs text-gray-500">
+                        {Math.min((currentPage - 1) * 50 + 1, filteredCustomers.length)} - {Math.min(currentPage * 50, filteredCustomers.length)} 表示中
+                    </span>
                 </div>
 
                 <CustomerList
-                    customers={filteredCustomers}
+                    customers={filteredCustomers.slice((currentPage - 1) * 50, currentPage * 50)}
                     loading={loading}
                     expandedRows={expandedRows}
                     toggleRow={toggleRow}
                 />
+
+                {/* Pagination Controls */}
+                {filteredCustomers.length > 50 && (
+                    <div className="px-4 py-3 border-t border-sf-border bg-gray-50 flex justify-center items-center gap-4">
+                        <button
+                            onClick={() => {
+                                setCurrentPage(p => Math.max(1, p - 1));
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 bg-white border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                        >
+                            前へ
+                        </button>
+                        <span className="text-sm text-gray-600">
+                            {currentPage} / {Math.ceil(filteredCustomers.length / 50)} ページ
+                        </span>
+                        <button
+                            onClick={() => {
+                                setCurrentPage(p => Math.min(Math.ceil(filteredCustomers.length / 50), p + 1));
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === Math.ceil(filteredCustomers.length / 50)}
+                            className="px-3 py-1 bg-white border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                        >
+                            次へ
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

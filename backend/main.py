@@ -1437,7 +1437,7 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(STATIC_DIR):
     # Mount _next directory for Next.js assets
     # Check if _next exists inside static to avoid error
-    if os.path.join(STATIC_DIR, "_next"):
+    if os.path.exists(os.path.join(STATIC_DIR, "_next")):
          app.mount("/_next", StaticFiles(directory=os.path.join(STATIC_DIR, "_next")), name="next_assets")
 
     @app.get("/")
@@ -1454,11 +1454,21 @@ if os.path.exists(STATIC_DIR):
         if os.path.isfile(file_path):
             return FileResponse(file_path)
         
-        # If not found, and path doesn't look like api, return index.html for SPA routing
+        # Check if it maps to a .html file (e.g. /design-search -> design-search.html)
+        html_path = file_path + ".html"
+        if os.path.isfile(html_path):
+            return FileResponse(html_path)
+            
+        # Check if it's a directory with index.html
+        index_path = os.path.join(file_path, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path)
+        
+        # If not found, return index.html for SPA routing
         # (API routes are already handled by precedence)
-        index_path = os.path.join(STATIC_DIR, "index.html")
-        if os.path.exists(index_path):
-             return FileResponse(index_path)
+        spa_index = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(spa_index):
+             return FileResponse(spa_index)
         
         return {"detail": "Not Found"}
 # ----------------------------------------------

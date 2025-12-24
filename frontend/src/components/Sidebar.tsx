@@ -100,6 +100,7 @@ export default function Sidebar() {
                         <Link
                             key={item.href}
                             href={item.href}
+                            prefetch={false}
                             className={`flex items-center px-4 py-3 text-sm font-medium transition-colors border-l-4 ${isActive
                                 ? 'border-sf-light-blue text-sf-light-blue bg-blue-50'
                                 : 'border-transparent text-sf-text-weak hover:bg-gray-50 hover:text-sf-text'
