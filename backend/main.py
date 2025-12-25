@@ -13,6 +13,15 @@ from typing import Optional
 
 
 import logging
+import sys
+import os
+
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = get_base_path()
 
 # Ensure multipart libraries are bundled by PyInstaller
 try:
@@ -28,6 +37,11 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logging.info("Server starting up...")
+logging.info(f"DEBUG PATHS: BASE_DIR={BASE_DIR}")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+logging.info(f"DEBUG PATHS: STATIC_DIR={STATIC_DIR}")
+logging.info(f"DEBUG PATHS: Static Exists={os.path.exists(STATIC_DIR)}")
+
 logging.info(f"Loaded python_multipart: {python_multipart.__file__ if 'python_multipart' in locals() else 'Not found'}")
 
 app = FastAPI()
@@ -53,7 +67,7 @@ async def strip_api_prefix(request: Request, call_next):
 
 # Load configuration
 def load_config():
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    config_path = os.path.join(BASE_DIR, 'config.json')
     default_path = r'\\Asahipack02\社内書類ｎｅｗ\01：部署別　営業部\02：営業日報\2025年度'
     
     if os.path.exists(config_path):
@@ -78,7 +92,7 @@ EXCEL_DIR = load_config()
 print(f"STARTUP: Working with EXCEL_DIR: {EXCEL_DIR}")
 
 # --- Global Sales Data Storage ---
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+DATA_DIR = os.path.join(BASE_DIR, 'data')
 SALES_CSV_PATH = os.path.join(DATA_DIR, 'sales_data.csv')
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -1470,7 +1484,7 @@ async def get_sales_data(customer_code: str):
 
 
 # --- Static File Serving for Standalone App ---
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 if os.path.exists(STATIC_DIR):
     # Mount _next directory for Next.js assets
