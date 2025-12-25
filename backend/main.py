@@ -1528,6 +1528,8 @@ async def get_all_sales_data():
                 "profit_2y_ago": row.get('前々年粗利'),
                 # Attempt to get area from '地域名称' or '地域' or Column M (index 12)
                 "area": row.get('地域名称') or row.get('地域') or (row.iloc[12] if len(row) > 12 else None),
+                # 担当者 from Column I (index 8)
+                "sales_rep": row.get('担当者') or (row.iloc[8] if len(row) > 8 else None),
             })
             
         return records

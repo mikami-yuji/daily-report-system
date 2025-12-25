@@ -39,16 +39,32 @@ export default function SalesAnalysisPage() {
 
     const [filterRank, setFilterRank] = useState('all');
     const [filterArea, setFilterArea] = useState('all');
+    const [filterSalesRep, setFilterSalesRep] = useState('all');  // 担当者フィルター
 
+    // 各フィルターに対して、他のフィルターが適用されたデータからユニーク値を取得（連動フィルター）
     const uniqueRanks = useMemo(() => {
-        const ranks = new Set(salesData.map(d => d.rank_class).filter(Boolean));
-        return Array.from(ranks).sort();
-    }, [salesData]);
+        let data = salesData;
+        if (filterArea !== 'all') data = data.filter(d => d.area === filterArea);
+        if (filterSalesRep !== 'all') data = data.filter(d => d.sales_rep === filterSalesRep);
+        const ranks = new Set(data.map(d => d.rank_class).filter(Boolean));
+        return Array.from(ranks).sort((a, b) => a.localeCompare(b, 'ja'));
+    }, [salesData, filterArea, filterSalesRep]);
 
     const uniqueAreas = useMemo(() => {
-        const areas = new Set(salesData.map(d => d.area).filter(d => d && d !== 'null' && d !== 'None'));
-        return Array.from(areas).sort();
-    }, [salesData]);
+        let data = salesData;
+        if (filterRank !== 'all') data = data.filter(d => d.rank_class === filterRank);
+        if (filterSalesRep !== 'all') data = data.filter(d => d.sales_rep === filterSalesRep);
+        const areas = new Set(data.map(d => d.area).filter(d => d && d !== 'null' && d !== 'None'));
+        return Array.from(areas).sort((a, b) => a!.localeCompare(b!, 'ja'));
+    }, [salesData, filterRank, filterSalesRep]);
+
+    const uniqueSalesReps = useMemo(() => {
+        let data = salesData;
+        if (filterRank !== 'all') data = data.filter(d => d.rank_class === filterRank);
+        if (filterArea !== 'all') data = data.filter(d => d.area === filterArea);
+        const reps = new Set(data.map(d => d.sales_rep).filter(d => d && d !== 'null' && d !== 'None'));
+        return Array.from(reps).sort((a, b) => a!.localeCompare(b!, 'ja'));
+    }, [salesData, filterRank, filterArea]);
 
     const handleSort = (field: keyof SalesData) => {
         if (sortField === field) {
@@ -69,6 +85,9 @@ export default function SalesAnalysisPage() {
         }
         if (filterArea !== 'all') {
             result = result.filter(item => item.area === filterArea);
+        }
+        if (filterSalesRep !== 'all') {
+            result = result.filter(item => item.sales_rep === filterSalesRep);
         }
 
         if (searchTerm) {
@@ -93,7 +112,7 @@ export default function SalesAnalysisPage() {
         });
 
         return result;
-    }, [salesData, searchTerm, sortField, sortDirection, filterRank, filterArea]);
+    }, [salesData, searchTerm, sortField, sortDirection, filterRank, filterArea, filterSalesRep]);
 
     // 合計計算（フィルター適用後のデータ）
     const totals = useMemo(() => {
@@ -213,6 +232,23 @@ export default function SalesAnalysisPage() {
                         ))
                     ) : (
                         <option disabled>エリア情報なし</option>
+                    )}
+                </select>
+
+                {/* Sales Rep Filter */}
+                <select
+                    value={filterSalesRep}
+                    onChange={(e) => setFilterSalesRep(e.target.value)}
+                    className="border border-sf-border rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-sf-light-blue/20"
+                    disabled={uniqueSalesReps.length === 0}
+                >
+                    <option value="all">全担当者</option>
+                    {uniqueSalesReps.length > 0 ? (
+                        uniqueSalesReps.map(rep => (
+                            <option key={rep} value={rep}>{rep}</option>
+                        ))
+                    ) : (
+                        <option disabled>担当者情報なし</option>
                     )}
                 </select>
 
