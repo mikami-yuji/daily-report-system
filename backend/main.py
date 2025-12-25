@@ -757,7 +757,10 @@ class ReplyInput(BaseModel):
 
 @app.patch("/reports/{management_number}/reply")
 def update_report_reply(management_number: int, reply: ReplyInput, background_tasks: BackgroundTasks, filename: str = DEFAULT_EXCEL_FILE):
-    """コメント返信欄のみを更新（シンプル）"""
+    """コメント返信欄のみを更新（安全な保存）"""
+    import tempfile
+    import shutil
+    
     print(f"DEBUG update_report_reply: management_number={management_number}, reply={reply.コメント返信欄}")
     try:
         excel_file = os.path.join(EXCEL_DIR, filename)
@@ -780,15 +783,39 @@ def update_report_reply(management_number: int, reply: ReplyInput, background_ta
         
         print(f"DEBUG target_row: {target_row}")
         if not target_row:
+            wb.close()
             raise HTTPException(status_code=404, detail=f"Report {management_number} not found")
         
         # Column 23 = コメント返信欄
         ws.cell(row=target_row, column=23, value=reply.コメント返信欄)
-        print(f"DEBUG cell set, saving...")
+        print(f"DEBUG cell set, saving to temp file...")
         
-        wb.save(excel_file)
-        print(f"DEBUG saved")
-        wb.close()
+        # 安全な保存: 一時ファイルに保存してから置き換え
+        temp_dir = tempfile.gettempdir()
+        temp_file = os.path.join(temp_dir, f"temp_{filename}")
+        
+        try:
+            # 一時ファイルに保存
+            wb.save(temp_file)
+            wb.close()
+            print(f"DEBUG saved to temp: {temp_file}")
+            
+            # 一時ファイルが正常か確認（読み込みテスト）
+            test_wb = openpyxl.load_workbook(temp_file, read_only=True)
+            test_wb.close()
+            print(f"DEBUG temp file verified")
+            
+            # 元のファイルを一時ファイルで置き換え
+            shutil.copy2(temp_file, excel_file)
+            print(f"DEBUG replaced original file")
+            
+        finally:
+            # 一時ファイルを削除
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
         
         # Clear cache
         cache_key = (filename, '営業日報')

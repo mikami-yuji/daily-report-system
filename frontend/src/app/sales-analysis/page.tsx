@@ -95,6 +95,28 @@ export default function SalesAnalysisPage() {
         return result;
     }, [salesData, searchTerm, sortField, sortDirection, filterRank, filterArea]);
 
+    // 合計計算（フィルター適用後のデータ）
+    const totals = useMemo(() => {
+        const sales = filteredAndSortedData.reduce((sum, item) => sum + (item.sales_amount || 0), 0);
+        const profit = filteredAndSortedData.reduce((sum, item) => sum + (item.gross_profit || 0), 0);
+        const salesLastYear = filteredAndSortedData.reduce((sum, item) => sum + (item.sales_last_year || 0), 0);
+        const profitLastYear = filteredAndSortedData.reduce((sum, item) => sum + (item.profit_last_year || 0), 0);
+        const salesYoY = salesLastYear > 0 ? ((sales - salesLastYear) / salesLastYear * 100) : 0;
+        const profitYoY = profitLastYear > 0 ? ((profit - profitLastYear) / profitLastYear * 100) : 0;
+        return { sales, profit, salesLastYear, profitLastYear, salesYoY, profitYoY };
+    }, [filteredAndSortedData]);
+
+    // 金額フォーマット
+    const formatCurrency = (value: number) => {
+        if (value >= 100000000) {
+            return `${(value / 100000000).toFixed(1)}億`;
+        } else if (value >= 10000) {
+            return `${Math.round(value / 10000).toLocaleString()}万`;
+        }
+        return value.toLocaleString();
+    };
+
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-sf-border mb-4">
@@ -112,6 +134,42 @@ export default function SalesAnalysisPage() {
                     >
                         <RotateCcw size={20} />
                     </button>
+                </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* 今年売上 */}
+                <div className="bg-white p-4 rounded-lg border border-sf-border shadow-sm">
+                    <div className="text-xs text-gray-500 mb-1">売上合計（今年）</div>
+                    <div className="text-xl font-bold text-sf-text">{formatCurrency(totals.sales)}円</div>
+                    <div className={`text-xs mt-1 ${totals.salesYoY >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        前年比 {totals.salesYoY >= 0 ? '+' : ''}{totals.salesYoY.toFixed(1)}%
+                    </div>
+                </div>
+                {/* 前年売上 */}
+                <div className="bg-white p-4 rounded-lg border border-sf-border shadow-sm">
+                    <div className="text-xs text-gray-500 mb-1">売上合計（前年）</div>
+                    <div className="text-xl font-bold text-gray-500">{formatCurrency(totals.salesLastYear)}円</div>
+                    <div className="text-xs mt-1 text-gray-400">
+                        差額 {totals.sales - totals.salesLastYear >= 0 ? '+' : ''}{formatCurrency(totals.sales - totals.salesLastYear)}円
+                    </div>
+                </div>
+                {/* 今年粗利 */}
+                <div className="bg-white p-4 rounded-lg border border-sf-border shadow-sm">
+                    <div className="text-xs text-gray-500 mb-1">粗利合計（今年）</div>
+                    <div className="text-xl font-bold text-emerald-600">{formatCurrency(totals.profit)}円</div>
+                    <div className={`text-xs mt-1 ${totals.profitYoY >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        前年比 {totals.profitYoY >= 0 ? '+' : ''}{totals.profitYoY.toFixed(1)}%
+                    </div>
+                </div>
+                {/* 前年粗利 */}
+                <div className="bg-white p-4 rounded-lg border border-sf-border shadow-sm">
+                    <div className="text-xs text-gray-500 mb-1">粗利合計（前年）</div>
+                    <div className="text-xl font-bold text-gray-500">{formatCurrency(totals.profitLastYear)}円</div>
+                    <div className="text-xs mt-1 text-gray-400">
+                        差額 {totals.profit - totals.profitLastYear >= 0 ? '+' : ''}{formatCurrency(totals.profit - totals.profitLastYear)}円
+                    </div>
                 </div>
             </div>
 
