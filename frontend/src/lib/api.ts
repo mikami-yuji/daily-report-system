@@ -2,6 +2,20 @@ import axios from 'axios';
 
 const API_URL = process.env.NODE_ENV === 'development' ? '/api' : '';
 
+// タイムアウト設定（ミリ秒）
+const DEFAULT_TIMEOUT = 30000; // 30秒
+const LONG_TIMEOUT = 60000;    // 60秒（ファイル操作用）
+
+// axiosインスタンス作成（タイムアウト付き）
+const api = axios.create({
+    timeout: DEFAULT_TIMEOUT,
+});
+
+// 長時間操作用インスタンス
+const apiLong = axios.create({
+    timeout: LONG_TIMEOUT,
+});
+
 export interface Report {
     管理番号: number;
     日付: string;
@@ -43,13 +57,13 @@ export interface ExcelFile {
 }
 
 export const getFiles = async (): Promise<{ files: ExcelFile[]; default: string }> => {
-    const response = await axios.get(`${API_URL}/files`);
+    const response = await api.get(`${API_URL}/files`);
     return response.data;
 };
 
 export const getReports = async (filename?: string): Promise<Report[]> => {
     const params = filename ? { filename } : {};
-    const response = await axios.get(`${API_URL}/reports`, { params });
+    const response = await api.get(`${API_URL}/reports`, { params });
     if (!Array.isArray(response.data)) {
         console.warn('getReports received non-array data:', response.data);
         return [];
@@ -59,26 +73,26 @@ export const getReports = async (filename?: string): Promise<Report[]> => {
 
 export const addReport = async (report: Omit<Report, '管理番号'>, filename?: string) => {
     const params = filename ? { filename } : {};
-    const response = await axios.post(`${API_URL}/reports`, report, { params });
+    const response = await apiLong.post(`${API_URL}/reports`, report, { params });
     return response.data;
 };
 
 export const updateReport = async (managementNumber: number, report: Partial<Omit<Report, '管理番号'>>, filename?: string) => {
     const params = filename ? { filename } : {};
-    const response = await axios.post(`${API_URL}/reports/${managementNumber}`, report, { params });
+    const response = await apiLong.post(`${API_URL}/reports/${managementNumber}`, report, { params });
     return response.data;
 };
 
 // シンプルな返信専用API（楽観的ロックなし）
 export const updateReportReply = async (managementNumber: number, reply: string, filename?: string): Promise<{ success: boolean }> => {
     const params = filename ? { filename } : {};
-    const response = await axios.patch(`${API_URL}/reports/${managementNumber}/reply`, { コメント返信欄: reply }, { params });
+    const response = await api.patch(`${API_URL}/reports/${managementNumber}/reply`, { コメント返信欄: reply }, { params });
     return response.data;
 };
 
 export const deleteReport = async (managementNumber: number, filename?: string) => {
     const params = filename ? { filename } : {};
-    const response = await axios.delete(`${API_URL}/reports/${managementNumber}`, { params });
+    const response = await api.delete(`${API_URL}/reports/${managementNumber}`, { params });
     return response.data;
 };
 
@@ -86,7 +100,7 @@ export const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await axios.post(`${API_URL}/upload`, formData, {
+    const response = await apiLong.post(`${API_URL}/upload`, formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
@@ -108,7 +122,7 @@ export interface Customer {
 
 export const getCustomers = async (filename?: string): Promise<Customer[]> => {
     const params = filename ? { filename } : {};
-    const response = await axios.get(`${API_URL}/customers`, { params });
+    const response = await api.get(`${API_URL}/customers`, { params });
     return response.data;
 };
 
@@ -119,7 +133,7 @@ export const getInterviewers = async (customerCode: string, filename?: string, c
     if (deliveryName) params.delivery_name = deliveryName;
 
     // Use path parameter for customerCode to match backend
-    const response = await axios.get(`${API_URL}/interviewers/${encodeURIComponent(customerCode)}`, { params });
+    const response = await api.get(`${API_URL}/interviewers/${encodeURIComponent(customerCode)}`, { params });
     // Backend returns { customer_cd: ..., interviewers: [...] }
     return response.data.interviewers;
 };
@@ -136,7 +150,7 @@ export const getDesigns = async (customerCd: string, filename?: string, delivery
     const params: any = {};
     if (filename) params.filename = filename;
     if (deliveryName) params.delivery_name = deliveryName;
-    const response = await axios.get(`${API_URL}/designs/${customerCd}`, { params });
+    const response = await api.get(`${API_URL}/designs/${customerCd}`, { params });
     return response.data.designs;
 };
 
@@ -149,7 +163,7 @@ export interface DesignImage {
 
 export const getDesignImages = async (filename: string): Promise<{ images: DesignImage[], folder?: string, message?: string }> => {
     try {
-        const response = await axios.get(`${API_URL}/images/list`, {
+        const response = await api.get(`${API_URL}/images/list`, {
             params: { filename }
         });
         return response.data;
@@ -165,7 +179,7 @@ export const searchDesignImages = async (query: string, filename?: string): Prom
         if (filename) {
             params.filename = filename;
         }
-        const response = await axios.get(`${API_URL}/images/search`, {
+        const response = await api.get(`${API_URL}/images/search`, {
             params
         });
         return response.data;
@@ -198,7 +212,7 @@ export interface SalesData {
 
 export const getAllSales = async (): Promise<SalesData[]> => {
     try {
-        const response = await axios.get(`${API_URL}/sales/all`);
+        const response = await api.get(`${API_URL}/sales/all`);
         if (!Array.isArray(response.data)) {
             console.warn('getAllSales received non-array data:', response.data);
             return [];
