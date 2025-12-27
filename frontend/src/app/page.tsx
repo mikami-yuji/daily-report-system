@@ -37,6 +37,7 @@ export default function Home() {
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);  // 通知一覧の展開状態
 
   useEffect(() => {
     if (selectedFile) {
@@ -247,7 +248,7 @@ export default function Home() {
             <h2 className="text-lg font-bold text-red-700">新着コメントがあります ({unreadComments.length}件)</h2>
           </div>
           <div className="space-y-2">
-            {unreadComments.map((report) => (
+            {(showAllNotifications ? unreadComments : unreadComments.slice(0, 5)).map((report) => (
               <div
                 key={report.管理番号}
                 className="bg-white p-3 rounded border border-red-100 shadow-sm"
@@ -333,6 +334,17 @@ export default function Home() {
               </div>
             ))}
           </div>
+          {/* もっと見る / 折りたたむボタン */}
+          {unreadComments.length > 5 && (
+            <button
+              onClick={() => setShowAllNotifications(!showAllNotifications)}
+              className="mt-3 w-full py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors font-medium"
+            >
+              {showAllNotifications
+                ? '▲ 折りたたむ'
+                : `▼ 残り${unreadComments.length - 5}件を表示`}
+            </button>
+          )}
         </div>
       )}
 
