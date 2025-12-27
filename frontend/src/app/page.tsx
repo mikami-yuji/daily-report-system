@@ -5,7 +5,7 @@ import { getReports, Report, getDesignImages, DesignImage, getImageUrl, updateRe
 import { useFile } from '@/context/FileContext';
 import { FileText, Calendar, Users, Phone, TrendingUp, Star, BarChart3, Image as ImageIcon } from 'lucide-react';
 import EditReportModal from '../components/reports/EditReportModal';
-import { MessageCircle, Bell, X, Send, Trash2 } from 'lucide-react';
+import { MessageCircle, Bell, X, Send, Check } from 'lucide-react';
 import Link from 'next/link';
 import {
   BarChart,
@@ -284,10 +284,10 @@ export default function Home() {
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDismissNotification(report); }}
                           disabled={submittingReply}
-                          className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-bold hover:bg-gray-200 flex items-center gap-1 disabled:opacity-50"
+                          className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold hover:bg-green-200 flex items-center gap-1 disabled:opacity-50"
                         >
-                          <Trash2 size={12} />
-                          削除
+                          <Check size={12} />
+                          既読
                         </button>
                       </>
                     )}
