@@ -72,7 +72,6 @@ export default function Sidebar() {
         { name: '量販店調査検索', href: '/mass-retailer-survey', icon: Building2 },
         { name: '競合他社情報', href: '/competitor-info', icon: AlertCircle },
         { name: 'クレーム対応', href: '/complaints', icon: AlertTriangle },
-        { name: 'デザイン進捗', href: '/design-progress', icon: RefreshCw },
         { name: '分析・レポート', href: '/analytics', icon: BarChart2 },
         { name: '売上分析', href: '/sales-analysis', icon: BarChart2 },
         { name: '設定', href: '/settings', icon: Settings },
