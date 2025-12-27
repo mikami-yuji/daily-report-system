@@ -8,12 +8,14 @@ import CustomerList from '@/components/customers/CustomerList';
 import CustomerStats from '@/components/customers/CustomerStats';
 import { CustomerSummary } from '@/components/customers/types';
 import { processCustomers } from '@/components/customers/utils';
+import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
     const { selectedFile } = useFile();
     const [customers, setCustomers] = useState<CustomerSummary[]>([]);
     const [filteredCustomers, setFilteredCustomers] = useState<CustomerSummary[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedArea, setSelectedArea] = useState('');
     const [selectedRank, setSelectedRank] = useState('');
@@ -25,6 +27,7 @@ export default function CustomersPage() {
         if (!selectedFile) return;
 
         setLoading(true);
+        setError(null);
         getReports(selectedFile).then(data => {
             const processed = processCustomers(data);
             setCustomers(processed);
@@ -32,6 +35,8 @@ export default function CustomersPage() {
             setLoading(false);
         }).catch(err => {
             console.error(err);
+            setError('データの読み込みに失敗しました');
+            toast.error('得意先データの読み込みに失敗しました');
             setLoading(false);
         });
     }, [selectedFile]);
@@ -120,71 +125,92 @@ export default function CustomersPage() {
                 <h1 className="text-2xl font-semibold text-sf-text">得意先一覧</h1>
             </div>
 
-            {/* 検索・フィルターバー */}
-            <CustomerFilters
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                selectedArea={selectedArea}
-                setSelectedArea={setSelectedArea}
-                selectedRank={selectedRank}
-                setSelectedRank={setSelectedRank}
-                isPriorityOnly={isPriorityOnly}
-                setIsPriorityOnly={setIsPriorityOnly}
-                areas={areas}
-                ranks={ranks}
-            />
-
-            {/* 統計サマリー */}
-            <CustomerStats
-                customers={customers}
-                filteredCustomers={filteredCustomers}
-            />
-
-            {/* 得意先一覧テーブル */}
-            <div className="bg-white rounded border border-sf-border shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-sf-border bg-gray-50 flex justify-between items-center">
-                    <h2 className="font-semibold text-sm text-sf-text">得意先一覧 ({filteredCustomers.length}件)</h2>
-                    <span className="text-xs text-gray-500">
-                        {Math.min((currentPage - 1) * 50 + 1, filteredCustomers.length)} - {Math.min(currentPage * 50, filteredCustomers.length)} 表示中
-                    </span>
-                </div>
-
-                <CustomerList
-                    customers={filteredCustomers.slice((currentPage - 1) * 50, currentPage * 50)}
-                    loading={loading}
-                    expandedRows={expandedRows}
-                    toggleRow={toggleRow}
-                />
-
-                {/* Pagination Controls */}
-                {filteredCustomers.length > 50 && (
-                    <div className="px-4 py-3 border-t border-sf-border bg-gray-50 flex justify-center items-center gap-4">
-                        <button
-                            onClick={() => {
-                                setCurrentPage(p => Math.max(1, p - 1));
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1 bg-white border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                        >
-                            前へ
-                        </button>
-                        <span className="text-sm text-gray-600">
-                            {currentPage} / {Math.ceil(filteredCustomers.length / 50)} ページ
-                        </span>
-                        <button
-                            onClick={() => {
-                                setCurrentPage(p => Math.min(Math.ceil(filteredCustomers.length / 50), p + 1));
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            disabled={currentPage === Math.ceil(filteredCustomers.length / 50)}
-                            className="px-3 py-1 bg-white border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                        >
-                            次へ
-                        </button>
+            {/* ローディング表示 */}
+            {loading && (
+                <div className="bg-white rounded border border-sf-border shadow-sm p-8">
+                    <div className="flex items-center justify-center gap-3">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sf-light-blue"></div>
+                        <span className="text-sf-text-weak">読み込み中...</span>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {/* エラー表示 */}
+            {error && !loading && (
+                <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
+                    {error}
+                </div>
+            )}
+
+            {!loading && !error && (
+                <>
+                    {/* 検索・フィルターバー */}
+                    <CustomerFilters
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        selectedArea={selectedArea}
+                        setSelectedArea={setSelectedArea}
+                        selectedRank={selectedRank}
+                        setSelectedRank={setSelectedRank}
+                        isPriorityOnly={isPriorityOnly}
+                        setIsPriorityOnly={setIsPriorityOnly}
+                        areas={areas}
+                        ranks={ranks}
+                    />
+
+                    {/* 統計サマリー */}
+                    <CustomerStats
+                        customers={customers}
+                        filteredCustomers={filteredCustomers}
+                    />
+
+                    {/* 得意先一覧テーブル */}
+                    <div className="bg-white rounded border border-sf-border shadow-sm overflow-hidden">
+                        <div className="px-4 py-3 border-b border-sf-border bg-gray-50 flex justify-between items-center">
+                            <h2 className="font-semibold text-sm text-sf-text">得意先一覧 ({filteredCustomers.length}件)</h2>
+                            <span className="text-xs text-gray-500">
+                                {Math.min((currentPage - 1) * 50 + 1, filteredCustomers.length)} - {Math.min(currentPage * 50, filteredCustomers.length)} 表示中
+                            </span>
+                        </div>
+
+                        <CustomerList
+                            customers={filteredCustomers.slice((currentPage - 1) * 50, currentPage * 50)}
+                            loading={loading}
+                            expandedRows={expandedRows}
+                            toggleRow={toggleRow}
+                        />
+
+                        {/* Pagination Controls */}
+                        {filteredCustomers.length > 50 && (
+                            <div className="px-4 py-3 border-t border-sf-border bg-gray-50 flex justify-center items-center gap-4">
+                                <button
+                                    onClick={() => {
+                                        setCurrentPage(p => Math.max(1, p - 1));
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                >
+                                    前へ
+                                </button>
+                                <span className="text-sm text-gray-600">
+                                    {currentPage} / {Math.ceil(filteredCustomers.length / 50)} ページ
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        setCurrentPage(p => Math.min(Math.ceil(filteredCustomers.length / 50), p + 1));
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    disabled={currentPage === Math.ceil(filteredCustomers.length / 50)}
+                                    className="px-3 py-1 bg-white border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                >
+                                    次へ
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
     );
 }

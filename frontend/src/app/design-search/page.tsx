@@ -86,6 +86,7 @@ export default function DesignSearchPage() {
             setLoading(false);
         }).catch(err => {
             console.error(err);
+            toast.error('デザイン依頼データの読み込みに失敗しました');
             setLoading(false);
         });
     }, [selectedFile]);
