@@ -41,6 +41,10 @@ export default function SalesAnalysisPage() {
     const [filterArea, setFilterArea] = useState('all');
     const [filterSalesRep, setFilterSalesRep] = useState('all');  // 担当者フィルター
 
+    // ページネーション
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
+
     // 各フィルターに対して、他のフィルターが適用されたデータからユニーク値を取得（連動フィルター）
     const uniqueRanks = useMemo(() => {
         let data = salesData;
@@ -113,6 +117,15 @@ export default function SalesAnalysisPage() {
 
         return result;
     }, [salesData, searchTerm, sortField, sortDirection, filterRank, filterArea, filterSalesRep]);
+
+    // ページネーション計算
+    const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
+    const paginatedData = filteredAndSortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    // フィルター変更時にページをリセット
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterRank, filterArea, filterSalesRep, searchTerm]);
 
     // 合計計算（フィルター適用後のデータ）
     const totals = useMemo(() => {
@@ -264,11 +277,48 @@ export default function SalesAnalysisPage() {
                 </div>
             ) : (
                 <SalesTable
-                    data={filteredAndSortedData}
+                    data={paginatedData}
                     sortField={sortField}
                     sortDirection={sortDirection}
                     onSort={handleSort}
                 />
+            )}
+
+            {/* ページネーション */}
+            {totalPages > 1 && (
+                <div className="p-3 bg-white border border-sf-border rounded flex justify-center items-center gap-2">
+                    <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        ««
+                    </button>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        «
+                    </button>
+                    <span className="px-4 text-sm text-sf-text">
+                        {currentPage} / {totalPages} ページ
+                    </span>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        »
+                    </button>
+                    <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        »»
+                    </button>
+                </div>
             )}
         </div>
     );
