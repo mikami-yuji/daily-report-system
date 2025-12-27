@@ -41,6 +41,12 @@ export default function ReportsPage() {
     const [showEditReportModal, setShowEditReportModal] = useState(false);
     const [editingReport, setEditingReport] = useState<Report | null>(null);
 
+    // ページネーション
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
+    const totalPages = Math.ceil(reports.length / itemsPerPage);
+    const paginatedReports = reports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
 
 
     useEffect(() => {
@@ -173,7 +179,7 @@ export default function ReportsPage() {
                 ) : viewMode === 'table' ? (
                     <div className="divide-y divide-sf-border">
 
-                        {reports.map((report, i) => (
+                        {paginatedReports.map((report, i) => (
                             <div
                                 key={i}
                                 className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -211,7 +217,7 @@ export default function ReportsPage() {
                     </div>
                 ) : (
                     <div className="p-4 space-y-4">
-                        {reports.map((report, i) => (
+                        {paginatedReports.map((report, i) => (
                             <div
                                 key={i}
                                 className="bg-white p-4 rounded border border-sf-border shadow-sm hover:shadow-md transition-shadow cursor-pointer hover:border-sf-light-blue"
@@ -318,8 +324,44 @@ export default function ReportsPage() {
                 )}
             </div>
 
+            {/* フッター + ページネーション */}
             <div className="p-2 bg-white border border-sf-border rounded text-xs text-sf-text-weak flex justify-between items-center">
                 <span>{reports.length} 件 • {selectedFile}</span>
+                {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            ««
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            «
+                        </button>
+                        <span className="px-2 text-sm text-sf-text">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            »
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            »»
+                        </button>
+                    </div>
+                )}
                 <span>並び順: {sortOrder === 'desc' ? '新しい順' : '古い順'}</span>
             </div>
 

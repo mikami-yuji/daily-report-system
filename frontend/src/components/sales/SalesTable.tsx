@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { SalesData } from '@/lib/api';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
-interface SalesTableProps {
+type SalesTableProps = {
     data: SalesData[];
     sortField: keyof SalesData;
     sortDirection: 'asc' | 'desc';
     onSort: (field: keyof SalesData) => void;
 }
 
-export default function SalesTable({ data, sortField, sortDirection, onSort }: SalesTableProps) {
+const SalesTable = memo(function SalesTable({ data, sortField, sortDirection, onSort }: SalesTableProps) {
     const formatCurrency = (val: number | null) => {
         if (val === null || val === undefined) return '-';
         return new Intl.NumberFormat('ja-JP').format(val);
@@ -103,4 +103,6 @@ export default function SalesTable({ data, sortField, sortDirection, onSort }: S
             )}
         </div>
     );
-}
+});
+
+export default SalesTable;
