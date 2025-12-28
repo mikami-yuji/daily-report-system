@@ -225,12 +225,15 @@ export default function DesignSearchPage() {
         setFilteredRequests(filtered);
     }, [searchTerm, selectedCustomer, selectedType, selectedProgress, designRequests]);
 
-    // 得意先が変更されたら種別フィルターをリセット
+    // 得意先が変更されたら種別フィルターをリセット（利用可能な種別リストにない場合）
     useEffect(() => {
-        if (selectedType && !availableTypes.includes(selectedType)) {
-            setSelectedType('');
-        }
-    }, [availableTypes, selectedType]);
+        setSelectedType(prev => {
+            if (prev && !availableTypes.includes(prev)) {
+                return '';
+            }
+            return prev;
+        });
+    }, [availableTypes]);
 
     const toggleRow = (designNo: string) => {
         const newExpanded = new Set(expandedRows);
