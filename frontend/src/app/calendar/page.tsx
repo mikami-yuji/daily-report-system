@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useFile } from '@/context/FileContext';
-import { getReports, Report } from '@/lib/api';
+import { useReports } from '@/hooks/useQueryHooks';
 import { generateMonthCalendar, MonthData, CalendarDay, getDayName, getMonthName } from '@/lib/calendar';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Printer, Users, MapPin } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
@@ -10,36 +10,27 @@ import toast from 'react-hot-toast';
 
 export default function CalendarPage() {
     const { selectedFile } = useFile();
-    const [reports, setReports] = useState<Report[]>([]);
+
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: reports = [], isLoading, error } = useReports(selectedFile || undefined);
+
     const [currentDate, setCurrentDate] = useState(new Date());
     const [monthData, setMonthData] = useState<MonthData | null>(null);
     const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
-    const [loading, setLoading] = useState(true);
     const printRef = useRef<HTMLDivElement>(null);
 
+    // エラー時のtoast表示
     useEffect(() => {
-        loadReports();
-    }, [selectedFile]);
+        if (error) {
+            toast.error('カレンダーデータの読み込みに失敗しました');
+        }
+    }, [error]);
 
     useEffect(() => {
         if (reports.length > 0) {
             generateCalendar();
         }
     }, [reports, currentDate]);
-
-    const loadReports = async () => {
-        if (!selectedFile) return;
-        try {
-            setLoading(true);
-            const data = await getReports(selectedFile);
-            setReports(data);
-        } catch (error) {
-            console.error('Failed to load reports:', error);
-            toast.error('カレンダーデータの読み込みに失敗しました');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const generateCalendar = () => {
         const year = currentDate.getFullYear();
@@ -76,7 +67,7 @@ export default function CalendarPage() {
         documentTitle: `訪問カレンダー_${currentDate.getFullYear()}年${getMonthName(currentDate.getMonth())}`,
     });
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen flex-col">
                 <div className="text-center">

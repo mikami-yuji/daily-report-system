@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFile } from '@/context/FileContext';
-import { getReports, Report } from '@/lib/api';
+import { useReports } from '@/hooks/useQueryHooks';
 import { aggregateAnalytics, getDateRange, AnalyticsData } from '@/lib/analytics';
 import KPICard from '@/components/KPICard';
 import { Users, FileText, Briefcase, CheckCircle, XCircle, TrendingUp, Phone, Mail, LayoutDashboard, MessageSquare, Palette, Star } from 'lucide-react';
@@ -19,15 +19,20 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'
 
 export default function AnalyticsPage() {
     const { selectedFile } = useFile();
-    const [reports, setReports] = useState<Report[]>([]);
+
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: reports = [], isLoading, error } = useReports(selectedFile || undefined);
+
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [period, setPeriod] = useState<Period>('month');
     const [activeTab, setActiveTab] = useState<Tab>('overview');
-    const [loading, setLoading] = useState(true);
 
+    // エラー時のtoast表示
     useEffect(() => {
-        loadReports();
-    }, [selectedFile]);
+        if (error) {
+            toast.error('分析データの読み込みに失敗しました');
+        }
+    }, [error]);
 
     useEffect(() => {
         if (reports.length > 0) {
@@ -35,27 +40,13 @@ export default function AnalyticsPage() {
         }
     }, [reports, period]);
 
-    const loadReports = async () => {
-        if (!selectedFile) return;
-        try {
-            setLoading(true);
-            const data = await getReports(selectedFile);
-            setReports(data);
-        } catch (error) {
-            console.error('Failed to load reports:', error);
-            toast.error('分析データの読み込みに失敗しました');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const calculateAnalytics = () => {
         const { start, end } = getDateRange(period);
         const analyticsData = aggregateAnalytics(reports, start, end);
         setAnalytics(analyticsData);
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen flex-col">
                 <div className="text-center">

@@ -1,47 +1,47 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getReports, Report } from '@/lib/api';
+import { useEffect, useState, useMemo } from 'react';
 import { useFile } from '@/context/FileContext';
+import { useReports } from '@/hooks/useQueryHooks';
 import { Search, Calendar, User, Building2, AlertCircle, TrendingDown } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function CompetitorInfoPage() {
     const { selectedFile } = useFile();
-    const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredReports, setFilteredReports] = useState<Report[]>([]);
 
-    useEffect(() => {
-        if (!selectedFile) return;
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: allReports = [], isLoading, error } = useReports(selectedFile || undefined);
 
-        setLoading(true);
-        getReports(selectedFile).then(data => {
-            // 競合他社情報があるレポートのみを抽出
-            const competitorReports = data.filter(r =>
-                r.競合他社情報 &&
-                String(r.競合他社情報).trim() !== '' &&
-                String(r.競合他社情報) !== '-'
-            );
-
-            // 日付の降順（新しい順）にソート
-            competitorReports.sort((a, b) => {
-                const dateA = String(a.日付 || '');
-                const dateB = String(b.日付 || '');
-                return dateB.localeCompare(dateA);
-            });
-
-            setReports(competitorReports);
-            setFilteredReports(competitorReports);
-            setLoading(false);
-        }).catch(err => {
-            console.error(err);
-            toast.error('競合他社情報の読み込みに失敗しました');
-            setLoading(false);
+    // 競合他社情報があるレポートを抽出
+    const reports = useMemo(() => {
+        const competitorReports = allReports.filter(r =>
+            r.競合他社情報 &&
+            String(r.競合他社情報).trim() !== '' &&
+            String(r.競合他社情報) !== '-'
+        );
+        // 日付の降順（新しい順）にソート
+        return competitorReports.sort((a, b) => {
+            const dateA = String(a.日付 || '');
+            const dateB = String(b.日付 || '');
+            return dateB.localeCompare(dateA);
         });
-    }, [selectedFile]);
+    }, [allReports]);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredReports, setFilteredReports] = useState(reports);
+
+    // エラー時のtoast表示
+    useEffect(() => {
+        if (error) {
+            toast.error('競合他社情報の読み込みに失敗しました');
+        }
+    }, [error]);
+
+    // レポートが変わったらフィルタリングをリセット
+    useEffect(() => {
+        setFilteredReports(reports);
+    }, [reports]);
 
     useEffect(() => {
         if (searchTerm.trim() === '') {
@@ -104,7 +104,7 @@ export default function CompetitorInfoPage() {
                     <h2 className="font-semibold text-sm text-sf-text">競合他社情報タイムライン</h2>
                 </div>
 
-                {loading ? (
+                {isLoading ? (
                     <div className="p-8 text-center text-sf-text-weak">読み込み中...</div>
                 ) : filteredReports.length === 0 ? (
                     <div className="p-8 text-center text-sf-text-weak">

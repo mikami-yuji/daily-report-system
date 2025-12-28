@@ -1,45 +1,46 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getReports, Report } from '@/lib/api';
+import { useEffect, useState, useMemo } from 'react';
 import { useFile } from '@/context/FileContext';
+import { useReports } from '@/hooks/useQueryHooks';
 import { Search, Calendar, User, Building2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function ComplaintsPage() {
     const { selectedFile, isLoadingFiles } = useFile();
-    const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredReports, setFilteredReports] = useState<Report[]>([]);
 
-    useEffect(() => {
-        if (!selectedFile || isLoadingFiles) return;
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: allReports = [], isLoading, error } = useReports(selectedFile || undefined);
 
-        getReports(selectedFile).then(data => {
-            // クレーム関連のレポートを抽出（行動内容または商談内容に「クレーム」を含む）
-            const complaintReports = data.filter(r =>
-                (r.行動内容 && String(r.行動内容).includes('クレーム')) ||
-                (r.商談内容 && String(r.商談内容).includes('クレーム'))
-            );
-
-            // 日付の降順（新しい順）にソート
-            complaintReports.sort((a, b) => {
-                const dateA = String(a.日付 || '');
-                const dateB = String(b.日付 || '');
-                return dateB.localeCompare(dateA);
-            });
-
-            setReports(complaintReports);
-            setFilteredReports(complaintReports);
-            setLoading(false);
-        }).catch(err => {
-            console.error(err);
-            toast.error('クレームデータの読み込みに失敗しました');
-            setLoading(false);
+    // クレーム関連のレポートを抽出
+    const reports = useMemo(() => {
+        const complaintReports = allReports.filter(r =>
+            (r.行動内容 && String(r.行動内容).includes('クレーム')) ||
+            (r.商談内容 && String(r.商談内容).includes('クレーム'))
+        );
+        // 日付の降順（新しい順）にソート
+        return complaintReports.sort((a, b) => {
+            const dateA = String(a.日付 || '');
+            const dateB = String(b.日付 || '');
+            return dateB.localeCompare(dateA);
         });
-    }, [selectedFile, isLoadingFiles]);
+    }, [allReports]);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredReports, setFilteredReports] = useState(reports);
+
+    // エラー時のtoast表示
+    useEffect(() => {
+        if (error) {
+            toast.error('クレームデータの読み込みに失敗しました');
+        }
+    }, [error]);
+
+    // レポートが変わったらフィルタリングをリセット
+    useEffect(() => {
+        setFilteredReports(reports);
+    }, [reports]);
 
     useEffect(() => {
         if (searchTerm.trim() === '') {
@@ -102,7 +103,7 @@ export default function ComplaintsPage() {
                     <h2 className="font-semibold text-sm text-sf-text">クレーム対応タイムライン</h2>
                 </div>
 
-                {loading ? (
+                {isLoading ? (
                     <div className="p-8 text-center text-sf-text-weak">読み込み中...</div>
                 ) : filteredReports.length === 0 ? (
                     <div className="p-8 text-center text-sf-text-weak">
