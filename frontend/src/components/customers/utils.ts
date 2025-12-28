@@ -46,6 +46,7 @@ export const processCustomers = (data: Report[]): CustomerSummary[] => {
         // Check for Direct Delivery
         const ddCode = report.直送先CD ? String(report.直送先CD) : '';
         const ddName = report.直送先名 ? String(report.直送先名) : '';
+        const isPriorityReport = !!(report.重点顧客 && report.重点顧客 !== '-' && report.重点顧客 !== '');
 
         let target = parent; // Defaults to updating parent
 
@@ -59,12 +60,17 @@ export const processCustomers = (data: Report[]): CustomerSummary[] => {
                     name,
                     String(report.エリア || ''),
                     String(report.ランク || ''),
-                    false, // Priority usually on Customer?
+                    isPriorityReport,  // 直送先も重点顧客をチェック
                     true,
                     ddCode,
                     ddName
                 );
                 parent.subItems?.push(sub);
+            } else {
+                // 既存の直送先でも、重点顧客フラグを更新（一度でも重点顧客なら維持）
+                if (isPriorityReport) {
+                    sub.isPriority = true;
+                }
             }
             target = sub;
         }
