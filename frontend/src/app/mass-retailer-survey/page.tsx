@@ -1,56 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useFile } from '@/context/FileContext';
-import { getReports, Report } from '@/lib/api';
+import { useReports } from '@/hooks/useQueryHooks';
 import { Search, MapPin, Calendar, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function MassRetailerSurveyPage() {
     const { selectedFile } = useFile();
-    const [reports, setReports] = useState<Report[]>([]);
-    const [filteredReports, setFilteredReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: allReports = [], isLoading, error } = useReports(selectedFile || undefined);
+
+    // 量販店調査レポートを抽出
+    const reports = useMemo(() => {
+        return allReports.filter(report => {
+            const action = String(report.行動内容 || '');
+            return action.includes('量販店調査');
+        });
+    }, [allReports]);
+
+    // エリア一覧を抽出
+    const areas = useMemo(() => {
+        return Array.from(new Set(
+            reports
+                .map(r => r.エリア)
+                .filter(area => area && area !== '')
+        )).sort();
+    }, [reports]);
+
+    const [filteredReports, setFilteredReports] = useState(reports);
     const [keyword, setKeyword] = useState('');
     const [selectedArea, setSelectedArea] = useState<string>('all');
-    const [areas, setAreas] = useState<string[]>([]);
 
+    // エラー時のtoast表示
     useEffect(() => {
-        loadReports();
-    }, [selectedFile]);
+        if (error) {
+            toast.error('量販店調査データの読み込みに失敗しました');
+        }
+    }, [error]);
 
+    // レポートが変わったらフィルタリング実行
     useEffect(() => {
         filterReports();
     }, [reports, keyword, selectedArea]);
-
-    const loadReports = async () => {
-        if (!selectedFile) return;
-        try {
-            setLoading(true);
-            const data = await getReports(selectedFile);
-
-            // Filter for mass retailer survey reports (行動内容：量販店調査)
-            const surveyReports = data.filter(report => {
-                const action = String(report.行動内容 || '');
-                return action.includes('量販店調査');
-            });
-
-            setReports(surveyReports);
-
-            // Extract unique areas
-            const uniqueAreas = Array.from(new Set(
-                surveyReports
-                    .map(r => r.エリア)
-                    .filter(area => area && area !== '')
-            )).sort();
-            setAreas(uniqueAreas);
-        } catch (error) {
-            console.error('Failed to load reports:', error);
-            toast.error('量販店調査データの読み込みに失敗しました');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const filterReports = () => {
         let filtered = [...reports];
@@ -85,7 +78,7 @@ export default function MassRetailerSurveyPage() {
         setFilteredReports(filtered);
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen flex-col">
                 <div className="text-center">

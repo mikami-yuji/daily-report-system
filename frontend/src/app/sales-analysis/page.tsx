@@ -1,22 +1,20 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { getAllSales, SalesData } from '@/lib/api';
+import { useState, useMemo, useEffect } from 'react';
+import { useSales } from '@/hooks/useQueryHooks';
+import { SalesData } from '@/lib/api';
 import SalesTable from '@/components/sales/SalesTable';
 import { Search, RotateCcw } from 'lucide-react';
 
 export default function SalesAnalysisPage() {
-    const [salesData, setSalesData] = useState<SalesData[]>([]);
-    const [loading, setLoading] = useState(true);
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: rawSalesData = [], isLoading } = useSales();
+
     const [searchTerm, setSearchTerm] = useState('');
 
     // Sort State
     const [sortField, setSortField] = useState<keyof SalesData>('sales_amount');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-
-    useEffect(() => {
-        loadData();
-    }, []);
 
     const extractPrefecture = (address: string | null | undefined): string | undefined => {
         if (!address) return undefined;
@@ -25,17 +23,13 @@ export default function SalesAnalysisPage() {
         return match ? match[0] : address;
     };
 
-    const loadData = async () => {
-        setLoading(true);
-        const data = await getAllSales();
-        // Transform area to prefecture only
-        const processedData = data.map(item => ({
+    // 売上データの加工（県名抽出）
+    const salesData = useMemo(() => {
+        return rawSalesData.map(item => ({
             ...item,
             area: extractPrefecture(item.area)
         }));
-        setSalesData(processedData);
-        setLoading(false);
-    };
+    }, [rawSalesData]);
 
     const [filterRank, setFilterRank] = useState('all');
     const [filterArea, setFilterArea] = useState('all');
@@ -160,7 +154,7 @@ export default function SalesAnalysisPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={loadData}
+                        onClick={() => window.location.reload()}
                         className="p-2 text-sf-light-blue hover:bg-blue-50 rounded-full transition-colors"
                         title="データを更新"
                     >
@@ -271,55 +265,59 @@ export default function SalesAnalysisPage() {
             </div>
 
             {/* Table */}
-            {loading ? (
-                <div className="text-center py-20 text-gray-400">
-                    データを読み込み中...
-                </div>
-            ) : (
-                <SalesTable
-                    data={paginatedData}
-                    sortField={sortField}
-                    sortDirection={sortDirection}
-                    onSort={handleSort}
-                />
-            )}
+            {
+                isLoading ? (
+                    <div className="text-center py-20 text-gray-400">
+                        データを読み込み中...
+                    </div>
+                ) : (
+                    <SalesTable
+                        data={paginatedData}
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                    />
+                )
+            }
 
             {/* ページネーション */}
-            {totalPages > 1 && (
-                <div className="p-3 bg-white border border-sf-border rounded flex justify-center items-center gap-2">
-                    <button
-                        onClick={() => setCurrentPage(1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                    >
-                        ««
-                    </button>
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                    >
-                        «
-                    </button>
-                    <span className="px-4 text-sm text-sf-text">
-                        {currentPage} / {totalPages} ページ
-                    </span>
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                    >
-                        »
-                    </button>
-                    <button
-                        onClick={() => setCurrentPage(totalPages)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                    >
-                        »»
-                    </button>
-                </div>
-            )}
-        </div>
+            {
+                totalPages > 1 && (
+                    <div className="p-3 bg-white border border-sf-border rounded flex justify-center items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            ««
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            «
+                        </button>
+                        <span className="px-4 text-sm text-sf-text">
+                            {currentPage} / {totalPages} ページ
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            »
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            »»
+                        </button>
+                    </div>
+                )
+            }
+        </div >
     );
 }

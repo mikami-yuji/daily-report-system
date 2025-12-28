@@ -1,63 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getReports, getFiles, Report, ExcelFile } from '@/lib/api';
+import { useEffect, useState, useMemo } from 'react';
+import { useFiles, useReports } from '@/hooks/useQueryHooks';
+import { Report } from '@/lib/api';
 import { Search, Calendar, FileText, TrendingUp, Package } from 'lucide-react';
 
 export default function DesignProgressPage() {
-    const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [files, setFiles] = useState<ExcelFile[]>([]);
+    // React Queryでファイル一覧取得
+    const { data: filesData } = useFiles();
+    const files = filesData?.files || [];
+    const defaultFile = filesData?.default || '';
+
     const [selectedFile, setSelectedFile] = useState<string>('');
 
-    const [customers, setCustomers] = useState<string[]>([]);
+    // デフォルトファイルが読み込まれたら設定
+    useEffect(() => {
+        if (defaultFile && !selectedFile) {
+            setSelectedFile(defaultFile);
+        }
+    }, [defaultFile, selectedFile]);
+
+    // React Queryでレポート取得
+    const { data: reports = [], isLoading } = useReports(selectedFile || undefined);
+
     const [selectedCustomer, setSelectedCustomer] = useState<string>('');
-    const [designNumbers, setDesignNumbers] = useState<string[]>([]);
     const [selectedDesignNo, setSelectedDesignNo] = useState<string>('');
     const [progressHistory, setProgressHistory] = useState<Report[]>([]);
 
-    // Load available Excel files
-    useEffect(() => {
-        getFiles()
-            .then(data => {
-                setFiles(data.files);
-                setSelectedFile(data.default);
-            })
-            .catch(err => console.error('Failed to load files:', err));
-    }, []);
+    // デザイン依頼があるカスタマー一覧を抽出
+    const customers = useMemo(() => {
+        const customerSet = new Set<string>();
+        reports.forEach(r => {
+            const custId = r.得意先CD ? String(r.得意先CD) : '';
+            const designNo = r['デザイン依頼No.'];
+            if (custId && custId !== '-' && designNo && designNo !== '-') {
+                customerSet.add(custId);
+            }
+        });
+        return Array.from(customerSet).sort();
+    }, [reports]);
 
-    // Load reports for the selected file and build the customer list (only customers that have a design request)
-    useEffect(() => {
-        if (!selectedFile) return;
-        getReports(selectedFile)
-            .then(data => {
-                setReports(data);
-                setLoading(false);
-                const customerSet = new Set<string>();
-                data.forEach(r => {
-                    const custId = r.得意先CD ? String(r.得意先CD) : '';
-                    const designNo = r['デザイン依頼No.'];
-                    if (custId && custId !== '-' && designNo && designNo !== '-') {
-                        customerSet.add(custId);
-                    }
-                });
-                const customerList = Array.from(customerSet).sort();
-                setCustomers(customerList);
-            })
-            .catch(err => {
-                console.error(err);
-                setLoading(false);
-            });
-    }, [selectedFile]);
-
-    // When a customer is selected, build list of design numbers for that customer
-    useEffect(() => {
-        if (!selectedCustomer) {
-            setDesignNumbers([]);
-            setSelectedDesignNo('');
-            setProgressHistory([]);
-            return;
-        }
+    // 選択されたカスタマーのデザイン番号を抽出
+    const designNumbers = useMemo(() => {
+        if (!selectedCustomer) return [];
         const designSet = new Set<string>();
         reports.forEach(r => {
             if (String(r.得意先CD) === selectedCustomer) {
@@ -67,11 +52,14 @@ export default function DesignProgressPage() {
                 }
             }
         });
-        const sortedDesigns = Array.from(designSet).sort();
-        setDesignNumbers(sortedDesigns);
+        return Array.from(designSet).sort();
+    }, [selectedCustomer, reports]);
+
+    // カスタマー変更時に選択をリセット
+    useEffect(() => {
         setSelectedDesignNo('');
         setProgressHistory([]);
-    }, [selectedCustomer, reports]);
+    }, [selectedCustomer]);
 
     // When a design number is selected, build progress history
     useEffect(() => {
@@ -229,12 +217,12 @@ export default function DesignProgressPage() {
                                                 </div>
                                                 <span
                                                     className={`px-3 py-1 rounded-full text-xs font-medium ${report.デザイン進捗状況 === '完了'
-                                                            ? 'bg-green-100 text-green-700'
-                                                            : report.デザイン進捗状況 === '進行中'
-                                                                ? 'bg-blue-100 text-blue-700'
-                                                                : report.デザイン進捗状況 === '保留'
-                                                                    ? 'bg-yellow-100 text-yellow-700'
-                                                                    : 'bg-gray-100 text-gray-700'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : report.デザイン進捗状況 === '進行中'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : report.デザイン進捗状況 === '保留'
+                                                                ? 'bg-yellow-100 text-yellow-700'
+                                                                : 'bg-gray-100 text-gray-700'
                                                         }`}
                                                 >
                                                     {report.デザイン進捗状況 || '未設定'}
