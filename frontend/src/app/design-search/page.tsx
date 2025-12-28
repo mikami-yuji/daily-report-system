@@ -94,15 +94,22 @@ export default function DesignSearchPage() {
             }
         });
 
-        // 各デザイン依頼の日報を日付順にソート（昇順）
-        const requests = Array.from(designMap.values()).map(req => ({
-            ...req,
-            requests: req.requests.sort((a, b) => {
+        // 各デザイン依頼の日報を日付順にソート（昇順）し、最新の進捗状況を取得
+        const requests = Array.from(designMap.values()).map(req => {
+            const sortedRequests = req.requests.sort((a, b) => {
                 const dateA = String(a.日付 || '');
                 const dateB = String(b.日付 || '');
                 return dateA.localeCompare(dateB);
-            })
-        }));
+            });
+
+            // 最新のレポート（ソート後の最後）から進捗状況を取得
+            const latestReport = sortedRequests[sortedRequests.length - 1];
+            return {
+                ...req,
+                designProgress: String(latestReport?.['デザイン進捗状況'] || req.designProgress || ''),
+                requests: sortedRequests
+            };
+        });
 
         // 最終活動日（最新の日付）で降順にソートし、同日ならデザインNo.で降順
         requests.sort((a, b) => {
