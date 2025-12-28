@@ -74,7 +74,14 @@ export const processCustomers = (data: Report[]): CustomerSummary[] => {
         if (report.行動内容 && report.行動内容.includes('電話')) target.calls++;
         if (report['システム確認用デザインNo.'] && !isNaN(Number(report['システム確認用デザインNo.']))) target.designRequests++;
         const reportDate = String(report.日付 || '');
-        if (!target.lastActivity || reportDate > target.lastActivity) target.lastActivity = reportDate;
+        if (!target.lastActivity || reportDate > target.lastActivity) {
+            target.lastActivity = reportDate;
+            // 最新のレポートからランクを更新（空でない場合）
+            const reportRank = String(report.ランク || '').trim();
+            if (reportRank && reportRank !== '-') {
+                target.rank = reportRank;
+            }
+        }
 
         // Update Parent Stats (Aggregate)
         if (target !== parent) {
