@@ -320,22 +320,52 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         .map(([status, count]) => ({ status, count }))
         .sort((a, b) => b.count - a.count);
 
-    // Priority Customer Analysis
+    // Priority Customer Analysis - 得意先CDと直送先CDでユニークにカウント
     const priorityReports = filteredReports.filter(r => r.重点顧客 && r.重点顧客 !== '-' && r.重点顧客 !== '');
-    // Use Map to store unique design nos per customer
-    const priorityCustomerMap = new Map<string, { visits: number; calls: number; designNos: Set<string>; completed: number; rejected: number; lastVisit: string | null }>();
+
+    // Use customer code + direct delivery code as unique key
+    const priorityCustomerMap = new Map<string, {
+        code: string;
+        name: string;
+        visits: number;
+        calls: number;
+        designNos: Set<string>;
+        completed: number;
+        rejected: number;
+        lastVisit: string | null;
+        isDirectDelivery: boolean;
+    }>();
 
     priorityReports.forEach(report => {
+        const customerCode = String(report.得意先CD || '');
         const customerName = report.訪問先名 || '不明';
+        const ddCode = report.直送先CD ? String(report.直送先CD) : '';
+        const ddName = report.直送先名 ? String(report.直送先名) : '';
+
+        // 直送先がある場合は直送先をキーに、なければ得意先をキーにする
+        const uniqueKey = ddCode ? `${customerCode}-${ddCode}` : customerCode;
+        const displayName = ddCode ? (ddName || customerName) : customerName;
+        const isDD = !!ddCode;
+
         const action = String(report.行動内容 || '');
         const status = String(report.デザイン進捗状況 || '');
         const date = report.日付 || null;
         const designNo = report['システム確認用デザインNo.'] ? String(report['システム確認用デザインNo.']).trim() : '';
 
-        if (!priorityCustomerMap.has(customerName)) {
-            priorityCustomerMap.set(customerName, { visits: 0, calls: 0, designNos: new Set(), completed: 0, rejected: 0, lastVisit: null });
+        if (!priorityCustomerMap.has(uniqueKey)) {
+            priorityCustomerMap.set(uniqueKey, {
+                code: uniqueKey,
+                name: displayName,
+                visits: 0,
+                calls: 0,
+                designNos: new Set(),
+                completed: 0,
+                rejected: 0,
+                lastVisit: null,
+                isDirectDelivery: isDD
+            });
         }
-        const data = priorityCustomerMap.get(customerName)!;
+        const data = priorityCustomerMap.get(uniqueKey)!;
 
         if (action.includes('訪問')) {
             data.visits++;
@@ -361,7 +391,15 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
     });
 
     const priorityByCustomer = Array.from(priorityCustomerMap.entries())
-        .map(([name, data]) => ({ name, visits: data.visits, calls: data.calls, proposals: data.designNos.size, completed: data.completed, rejected: data.rejected, lastVisit: data.lastVisit }))
+        .map(([key, data]) => ({
+            name: data.isDirectDelivery ? `【直送】${data.name}` : data.name,
+            visits: data.visits,
+            calls: data.calls,
+            proposals: data.designNos.size,
+            completed: data.completed,
+            rejected: data.rejected,
+            lastVisit: data.lastVisit
+        }))
         .sort((a, b) => b.visits - a.visits);
 
     const totalPriorityVisits = priorityByCustomer.reduce((sum, c) => sum + c.visits, 0);
