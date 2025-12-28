@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useFile } from '@/context/FileContext';
 import { useReports } from '@/hooks/useQueryHooks';
-import { Search, Calendar, User, Building2, AlertTriangle } from 'lucide-react';
+import { Search, Calendar, User, Building2, AlertTriangle, Truck } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -27,7 +27,32 @@ export default function ComplaintsPage() {
         });
     }, [allReports]);
 
+    // 顧客リストを抽出（得意先CD + 直送先CDでユニーク）
+    const customers = useMemo(() => {
+        const customerMap = new Map<string, { code: string; name: string; isDD: boolean }>();
+        reports.forEach(r => {
+            const code = String(r.得意先CD || '');
+            const name = String(r.訪問先名 || '');
+            const ddCode = r.直送先CD ? String(r.直送先CD) : '';
+            const ddName = r.直送先名 ? String(r.直送先名) : '';
+
+            // 得意先を追加
+            if (code && !customerMap.has(code)) {
+                customerMap.set(code, { code, name, isDD: false });
+            }
+            // 直送先を追加
+            if (ddCode) {
+                const ddKey = `${code}-${ddCode}`;
+                if (!customerMap.has(ddKey)) {
+                    customerMap.set(ddKey, { code: ddKey, name: ddName || name, isDD: true });
+                }
+            }
+        });
+        return Array.from(customerMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [reports]);
+
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCustomer, setSelectedCustomer] = useState('');
     const [filteredReports, setFilteredReports] = useState(reports);
 
     // エラー時のtoast表示
@@ -43,21 +68,36 @@ export default function ComplaintsPage() {
     }, [reports]);
 
     useEffect(() => {
-        if (searchTerm.trim() === '') {
-            setFilteredReports(reports);
-            return;
+        let filtered = reports;
+
+        // 得意先/直送先フィルター
+        if (selectedCustomer) {
+            if (selectedCustomer.includes('-')) {
+                // 直送先の場合 (code-ddCode形式)
+                const [code, ddCode] = selectedCustomer.split('-');
+                filtered = filtered.filter(r =>
+                    String(r.得意先CD) === code && String(r.直送先CD || '') === ddCode
+                );
+            } else {
+                // 得意先の場合
+                filtered = filtered.filter(r => String(r.得意先CD) === selectedCustomer);
+            }
         }
 
-        const term = searchTerm.toLowerCase();
-        const filtered = reports.filter(r =>
-            String(r.得意先CD || '').toLowerCase().includes(term) ||
-            String(r.訪問先名 || '').toLowerCase().includes(term) ||
-            String(r.商談内容 || '').toLowerCase().includes(term) ||
-            String(r.面談者 || '').toLowerCase().includes(term)
-        );
+        // キーワード検索
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(r =>
+                String(r.得意先CD || '').toLowerCase().includes(term) ||
+                String(r.訪問先名 || '').toLowerCase().includes(term) ||
+                String(r.直送先名 || '').toLowerCase().includes(term) ||
+                String(r.商談内容 || '').toLowerCase().includes(term) ||
+                String(r.面談者 || '').toLowerCase().includes(term)
+            );
+        }
 
         setFilteredReports(filtered);
-    }, [searchTerm, reports]);
+    }, [searchTerm, selectedCustomer, reports]);
 
     return (
         <div className="space-y-6">
@@ -67,15 +107,34 @@ export default function ComplaintsPage() {
 
             {/* 検索エリア */}
             <div className="bg-white rounded border border-sf-border shadow-sm p-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="得意先、商談内容、面談者で検索..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
-                    />
+                <div className="flex flex-col md:flex-row gap-4">
+                    {/* 得意先プルダウン */}
+                    <div className="relative w-full md:w-80">
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <select
+                            value={selectedCustomer}
+                            onChange={(e) => setSelectedCustomer(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent appearance-none bg-white"
+                        >
+                            <option value="">すべての得意先・直送先</option>
+                            {customers.map(c => (
+                                <option key={c.code} value={c.code}>
+                                    {c.isDD ? `【直送】${c.name}` : c.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {/* キーワード検索 */}
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <input
+                            type="text"
+                            placeholder="商談内容、面談者で検索..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -143,7 +202,7 @@ export default function ComplaintsPage() {
                                 <div className="mb-3">
                                     {report.得意先CD ? (
                                         <Link
-                                            href={`/customers/${report.得意先CD}`}
+                                            href={`/customers/detail?code=${report.得意先CD}`}
                                             className="flex items-center gap-2 text-sf-light-blue hover:underline font-medium"
                                         >
                                             <Building2 size={16} />
@@ -154,6 +213,17 @@ export default function ComplaintsPage() {
                                             <Building2 size={16} />
                                             {report.訪問先名}
                                         </div>
+                                    )}
+                                    {/* 直送先表示 */}
+                                    {report.直送先CD && (
+                                        <Link
+                                            href={`/customers/detail?code=${report.得意先CD}&ddCode=${report.直送先CD}`}
+                                            className="flex items-center gap-2 text-blue-600 hover:underline text-sm mt-1 ml-6"
+                                        >
+                                            <Truck size={14} />
+                                            <span className="text-xs bg-blue-50 border border-blue-200 rounded px-1">直送先</span>
+                                            {report.直送先名} ({report.直送先CD})
+                                        </Link>
                                     )}
                                 </div>
 
