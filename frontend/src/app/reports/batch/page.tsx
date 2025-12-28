@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useFile } from '@/context/FileContext';
-import { Customer, getCustomers, getInterviewers, createReport } from '@/lib/api';
+import { Customer, getCustomers, getInterviewers, addReport } from '@/lib/api';
 import { queryKeys, useReports } from '@/hooks/useQueryHooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Save, Calendar, Building2, Clock, MessageSquare, ChevronDown, ChevronUp, Search } from 'lucide-react';
@@ -22,6 +22,7 @@ type VisitEntry = {
     商談内容: string;
     提案物: string;
     次回プラン: string;
+    競合他社情報: string;
     エリア: string;
     ランク: string;
     重点顧客: string;
@@ -41,6 +42,7 @@ const createEmptyVisit = (): VisitEntry => ({
     商談内容: '',
     提案物: '',
     次回プラン: '',
+    競合他社情報: '',
     エリア: '',
     ランク: '',
     重点顧客: '',
@@ -165,13 +167,14 @@ export default function BatchReportPage() {
                 商談内容: visit.商談内容,
                 提案物: visit.提案物,
                 次回プラン: visit.次回プラン,
+                競合他社情報: visit.競合他社情報,
                 エリア: visit.エリア,
                 ランク: visit.ランク,
                 重点顧客: visit.重点顧客,
             };
 
             try {
-                await createReport(reportData, selectedFile);
+                await addReport(reportData as any, selectedFile);
                 successCount++;
             } catch (error) {
                 console.error('Failed to create report:', error);
@@ -411,6 +414,18 @@ export default function BatchReportPage() {
                                             className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
                                         />
                                     </div>
+                                </div>
+
+                                {/* 競合他社情報 */}
+                                <div>
+                                    <label className="block text-xs font-medium text-sf-text-weak mb-1">競合他社情報</label>
+                                    <textarea
+                                        value={visit.競合他社情報}
+                                        onChange={(e) => updateVisit(visit.id, '競合他社情報', e.target.value)}
+                                        rows={2}
+                                        placeholder="競合他社の動向など"
+                                        className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent resize-none"
+                                    />
                                 </div>
                             </div>
                         )}
