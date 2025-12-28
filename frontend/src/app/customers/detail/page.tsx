@@ -53,10 +53,12 @@ function CustomerDetailContent() {
     const { selectedFile } = useFile();
     const searchParams = useSearchParams();
     const customerCode = searchParams.get('code');
+    const ddCode = searchParams.get('ddCode');  // 直送先CDパラメータ
 
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [customerName, setCustomerName] = useState('');
+    const [directDeliveryName, setDirectDeliveryName] = useState('');  // 直送先名
     const [activeTab, setActiveTab] = useState<'timeline' | 'designs' | 'complaints' | 'sales'>('timeline');
     const [designRequests, setDesignRequests] = useState<DesignRequest[]>([]);
     const [selectedInterviewer, setSelectedInterviewer] = useState<string>('');
@@ -78,7 +80,13 @@ function CustomerDetailContent() {
     useEffect(() => {
         if (customerCode && selectedFile) {
             getReports(selectedFile).then(data => {
-                const customerReports = data.filter(r => String(r.得意先CD) === customerCode);
+                // 得意先CDでフィルタリング
+                let customerReports = data.filter(r => String(r.得意先CD) === customerCode);
+
+                // 直送先CDが指定されている場合は直送先でもフィルタリング
+                if (ddCode) {
+                    customerReports = customerReports.filter(r => String(r.直送先CD || '') === ddCode);
+                }
 
                 customerReports.sort((a, b) => {
                     const dateA = String(a.日付 || '');
@@ -90,6 +98,9 @@ function CustomerDetailContent() {
 
                 if (customerReports.length > 0) {
                     setCustomerName(customerReports[0].訪問先名 || '名称不明');
+                    if (ddCode) {
+                        setDirectDeliveryName(customerReports[0].直送先名 || '直送先名不明');
+                    }
                 }
 
                 processDesignRequests(customerReports);
@@ -99,7 +110,7 @@ function CustomerDetailContent() {
                 setLoading(false);
             });
         }
-    }, [customerCode, selectedFile]);
+    }, [customerCode, ddCode, selectedFile]);
 
     const processDesignRequests = (data: Report[]) => {
         const designMap = new Map<number, DesignRequest>();
@@ -209,15 +220,35 @@ function CustomerDetailContent() {
                         得意先一覧
                     </Link>
                     <span>/</span>
-                    <span>{customerName}</span>
+                    {ddCode ? (
+                        <>
+                            <Link
+                                href={`/customers/detail?code=${customerCode}`}
+                                className="hover:text-sf-light-blue hover:underline"
+                            >
+                                {customerName}
+                            </Link>
+                            <span>/</span>
+                            <span>{directDeliveryName}</span>
+                        </>
+                    ) : (
+                        <span>{customerName}</span>
+                    )}
                 </div>
 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-sf-text flex items-center gap-3">
-                            {customerName}
+                            {ddCode ? (
+                                <>
+                                    <span className="text-sm font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">直送先</span>
+                                    {directDeliveryName}
+                                </>
+                            ) : (
+                                customerName
+                            )}
                             <span className="text-base font-normal text-sf-text-weak bg-gray-100 px-2 py-1 rounded">
-                                CD: {customerCode}
+                                {ddCode ? `直送CD: ${ddCode}` : `CD: ${customerCode}`}
                             </span>
                             {reports.length > 0 && reports[0].重点顧客 && reports[0].重点顧客 !== '-' && reports[0].重点顧客 !== '' && (
                                 <span className="inline-flex items-center px-2.5 py-1 rounded text-sm font-medium bg-yellow-100 text-yellow-800">

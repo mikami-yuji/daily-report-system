@@ -112,7 +112,12 @@ export default function CustomerList({ customers, loading, expandedRows, toggleR
                                     </td>
                                     <td className="px-4 py-3 pl-8 text-sm">
                                         <span className="text-sf-text-weak text-xs border border-gray-200 rounded px-1 mr-2 bg-white">直送</span>
-                                        {sub.directDeliveryName}
+                                        <Link
+                                            href={`/customers/detail?code=${sub.code}&ddCode=${sub.directDeliveryCode}`}
+                                            className="text-sf-light-blue hover:underline"
+                                        >
+                                            {sub.directDeliveryName}
+                                        </Link>
                                     </td>
                                     <td className="px-4 py-3 text-sf-text-weak text-xs">{sub.area || '-'}</td>
                                     <td className="px-4 py-3 text-center">
