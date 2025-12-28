@@ -26,6 +26,12 @@ type VisitEntry = {
     エリア: string;
     ランク: string;
     重点顧客: string;
+    デザイン提案有無: string;
+    デザイン種別: string;
+    デザイン名: string;
+    デザイン進捗状況: string;
+    'デザイン依頼No.': string;
+    designMode: 'none' | 'new' | 'existing';  // デザインモード
     isExpanded: boolean;
 };
 
@@ -46,6 +52,12 @@ const createEmptyVisit = (): VisitEntry => ({
     エリア: '',
     ランク: '',
     重点顧客: '',
+    デザイン提案有無: '',
+    デザイン種別: '',
+    デザイン名: '',
+    デザイン進捗状況: '',
+    'デザイン依頼No.': '',
+    designMode: 'none',
     isExpanded: true,
 });
 
@@ -171,6 +183,11 @@ export default function BatchReportPage() {
                 エリア: visit.エリア,
                 ランク: visit.ランク,
                 重点顧客: visit.重点顧客,
+                デザイン提案有無: visit.デザイン提案有無,
+                デザイン種別: visit.デザイン種別,
+                デザイン名: visit.デザイン名,
+                デザイン進捗状況: visit.デザイン進捗状況,
+                'デザイン依頼No.': visit['デザイン依頼No.'],
             };
 
             try {
@@ -369,14 +386,19 @@ export default function BatchReportPage() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-sf-text-weak mb-1">滞在時間（分）</label>
-                                        <input
-                                            type="number"
+                                        <label className="block text-xs font-medium text-sf-text-weak mb-1">滞在時間</label>
+                                        <select
                                             value={visit.滞在時間}
                                             onChange={(e) => updateVisit(visit.id, '滞在時間', e.target.value)}
-                                            placeholder="30"
                                             className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
-                                        />
+                                        >
+                                            <option value="">選択してください</option>
+                                            <option value="-">-</option>
+                                            <option value="10分未満">10分未満</option>
+                                            <option value="30分未満">30分未満</option>
+                                            <option value="60分未満">60分未満</option>
+                                            <option value="60分以上">60分以上</option>
+                                        </select>
                                     </div>
                                 </div>
 
@@ -426,6 +448,120 @@ export default function BatchReportPage() {
                                         placeholder="競合他社の動向など"
                                         className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent resize-none"
                                     />
+                                </div>
+
+                                {/* デザイン提案セクション */}
+                                <div className="border-t border-gray-200 pt-4 mt-4">
+                                    <h4 className="text-sm font-medium text-sf-text mb-3">デザイン情報</h4>
+                                    <div className="flex gap-4 mb-4">
+                                        <label className="flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name={`designMode-${visit.id}`}
+                                                checked={visit.designMode === 'none'}
+                                                onChange={() => {
+                                                    updateVisit(visit.id, 'designMode', 'none');
+                                                    updateVisit(visit.id, 'デザイン提案有無', '');
+                                                    updateVisit(visit.id, 'デザイン種別', '');
+                                                    updateVisit(visit.id, 'デザイン名', '');
+                                                    updateVisit(visit.id, 'デザイン進捗状況', '');
+                                                    updateVisit(visit.id, 'デザイン依頼No.', '');
+                                                }}
+                                                className="text-sf-light-blue focus:ring-sf-light-blue"
+                                            />
+                                            <span>なし</span>
+                                        </label>
+                                        <label className="flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name={`designMode-${visit.id}`}
+                                                checked={visit.designMode === 'new'}
+                                                onChange={() => {
+                                                    updateVisit(visit.id, 'designMode', 'new');
+                                                    updateVisit(visit.id, 'デザイン提案有無', 'あり');
+                                                    updateVisit(visit.id, 'デザイン進捗状況', '新規');
+                                                }}
+                                                className="text-sf-light-blue focus:ring-sf-light-blue"
+                                            />
+                                            <span>新規</span>
+                                        </label>
+                                        <label className="flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name={`designMode-${visit.id}`}
+                                                checked={visit.designMode === 'existing'}
+                                                onChange={() => {
+                                                    updateVisit(visit.id, 'designMode', 'existing');
+                                                    updateVisit(visit.id, 'デザイン提案有無', 'あり');
+                                                }}
+                                                className="text-sf-light-blue focus:ring-sf-light-blue"
+                                            />
+                                            <span>既存</span>
+                                        </label>
+                                    </div>
+
+                                    {(visit.designMode === 'new' || visit.designMode === 'existing') && (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-sf-text-weak mb-1">デザイン依頼No.</label>
+                                                    <input
+                                                        type="text"
+                                                        value={visit['デザイン依頼No.']}
+                                                        onChange={(e) => updateVisit(visit.id, 'デザイン依頼No.', e.target.value)}
+                                                        placeholder="依頼番号"
+                                                        className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-sf-text-weak mb-1">デザイン種別</label>
+                                                    <select
+                                                        value={visit.デザイン種別}
+                                                        onChange={(e) => updateVisit(visit.id, 'デザイン種別', e.target.value)}
+                                                        className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
+                                                    >
+                                                        <option value="">選択してください</option>
+                                                        <option value="-">-</option>
+                                                        <option value="別注（新版）">別注（新版）</option>
+                                                        <option value="別注（改版）">別注（改版）</option>
+                                                        <option value="別注（再版）">別注（再版）</option>
+                                                        <option value="SP（新版）">SP（新版）</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-sf-text-weak mb-1">デザイン名</label>
+                                                <input
+                                                    type="text"
+                                                    value={visit.デザイン名}
+                                                    onChange={(e) => updateVisit(visit.id, 'デザイン名', e.target.value)}
+                                                    placeholder="デザイン名を入力"
+                                                    className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-sf-text-weak mb-1">デザイン進捗状況</label>
+                                                    <select
+                                                        value={visit.デザイン進捗状況}
+                                                        onChange={(e) => updateVisit(visit.id, 'デザイン進捗状況', e.target.value)}
+                                                        className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent"
+                                                    >
+                                                        <option value="">選択してください</option>
+                                                        <option value="-">-</option>
+                                                        <option value="新規">新規</option>
+                                                        <option value="50％未満">50％未満</option>
+                                                        <option value="80％未満">80％未満</option>
+                                                        <option value="80％以上">80％以上</option>
+                                                        <option value="出稿">出稿</option>
+                                                        <option value="不採用（コンペ負け）">不採用（コンペ負け）</option>
+                                                        <option value="不採用（企画倒れ）">不採用（企画倒れ）</option>
+                                                        <option value="保留">保留</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
