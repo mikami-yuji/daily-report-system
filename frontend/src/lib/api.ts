@@ -163,7 +163,7 @@ export interface DesignImage {
 
 export const getDesignImages = async (filename: string): Promise<{ images: DesignImage[], folder?: string, message?: string }> => {
     try {
-        const response = await api.get(`${API_URL}/images/list`, {
+        const response = await apiLong.get(`${API_URL}/images/list`, {
             params: { filename }
         });
         return response.data;
@@ -179,7 +179,7 @@ export const searchDesignImages = async (query: string, filename?: string): Prom
         if (filename) {
             params.filename = filename;
         }
-        const response = await api.get(`${API_URL}/images/search`, {
+        const response = await apiLong.get(`${API_URL}/images/search`, {
             params
         });
         return response.data;
