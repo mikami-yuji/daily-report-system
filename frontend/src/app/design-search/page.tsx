@@ -348,7 +348,7 @@ export default function DesignSearchPage() {
                     <h2 className="font-semibold text-sm text-sf-text">デザイン依頼一覧</h2>
                 </div>
 
-                {loading ? (
+                {isLoading ? (
                     <div className="p-8 text-center text-sf-text-weak">読み込み中...</div>
                 ) : filteredRequests.length === 0 ? (
                     <div className="p-8 text-center text-sf-text-weak">
