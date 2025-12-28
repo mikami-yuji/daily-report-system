@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getReports, Report } from '@/lib/api';
+import { useEffect, useState, useMemo } from 'react';
 import { useFile } from '@/context/FileContext';
+import { useReports } from '@/hooks/useQueryHooks';
 import CustomerFilters from '@/components/customers/CustomerFilters';
 import CustomerList from '@/components/customers/CustomerList';
 import CustomerStats from '@/components/customers/CustomerStats';
@@ -12,10 +12,17 @@ import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
     const { selectedFile } = useFile();
-    const [customers, setCustomers] = useState<CustomerSummary[]>([]);
+
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: reports, isLoading, error } = useReports(selectedFile || undefined);
+
+    // 顧客データを加工
+    const customers = useMemo(() => {
+        if (!reports) return [];
+        return processCustomers(reports);
+    }, [reports]);
+
     const [filteredCustomers, setFilteredCustomers] = useState<CustomerSummary[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedArea, setSelectedArea] = useState('');
     const [selectedRank, setSelectedRank] = useState('');
@@ -23,23 +30,17 @@ export default function CustomersPage() {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [currentPage, setCurrentPage] = useState(1);
 
+    // エラー時のtoast表示
     useEffect(() => {
-        if (!selectedFile) return;
-
-        setLoading(true);
-        setError(null);
-        getReports(selectedFile).then(data => {
-            const processed = processCustomers(data);
-            setCustomers(processed);
-            setFilteredCustomers(processed);
-            setLoading(false);
-        }).catch(err => {
-            console.error(err);
-            setError('データの読み込みに失敗しました');
+        if (error) {
             toast.error('得意先データの読み込みに失敗しました');
-            setLoading(false);
-        });
-    }, [selectedFile]);
+        }
+    }, [error]);
+
+    // 顧客データが変わったらフィルタリングをリセット
+    useEffect(() => {
+        setFilteredCustomers(customers);
+    }, [customers]);
 
     const toggleRow = (id: string) => {
         const newExpanded = new Set(expandedRows);
@@ -126,7 +127,7 @@ export default function CustomersPage() {
             </div>
 
             {/* ローディング表示 */}
-            {loading && (
+            {isLoading && (
                 <div className="bg-white rounded border border-sf-border shadow-sm p-8">
                     <div className="flex items-center justify-center gap-3">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sf-light-blue"></div>
@@ -136,13 +137,13 @@ export default function CustomersPage() {
             )}
 
             {/* エラー表示 */}
-            {error && !loading && (
+            {error && !isLoading && (
                 <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
-                    {error}
+                    データの読み込みに失敗しました
                 </div>
             )}
 
-            {!loading && !error && (
+            {!isLoading && !error && (
                 <>
                     {/* 検索・フィルターバー */}
                     <CustomerFilters
@@ -175,7 +176,7 @@ export default function CustomersPage() {
 
                         <CustomerList
                             customers={filteredCustomers.slice((currentPage - 1) * 50, currentPage * 50)}
-                            loading={loading}
+                            loading={isLoading}
                             expandedRows={expandedRows}
                             toggleRow={toggleRow}
                         />

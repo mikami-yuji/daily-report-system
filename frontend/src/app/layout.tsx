@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import AppLayout from "@/components/AppLayout";
 import { FileProvider } from "@/context/FileContext";
 import { OfflineProvider } from "@/context/OfflineContext";
+import QueryProvider from "@/providers/QueryProvider";
 
 
 export const metadata: Metadata = {
@@ -33,13 +34,15 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <body className="antialiased bg-sf-bg text-sf-text h-screen overflow-hidden" suppressHydrationWarning>
         <Toaster position="top-right" />
-        <FileProvider>
-          <OfflineProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
-          </OfflineProvider>
-        </FileProvider>
+        <QueryProvider>
+          <FileProvider>
+            <OfflineProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </OfflineProvider>
+          </FileProvider>
+        </QueryProvider>
       </body>
     </html>
   );
