@@ -162,10 +162,10 @@ export default function BatchReportPage() {
         if (!term.trim()) return [];
         const lowerTerm = term.toLowerCase();
         return customers.filter(c =>
-            (c.得意先CD && c.得意先CD.toLowerCase().includes(lowerTerm)) ||
-            (c.得意先名 && c.得意先名.toLowerCase().includes(lowerTerm)) ||
-            (c.フリガナ && c.フリガナ.toLowerCase().includes(lowerTerm)) ||
-            (c.直送先名 && c.直送先名.toLowerCase().includes(lowerTerm))
+            (c.得意先CD && String(c.得意先CD).toLowerCase().includes(lowerTerm)) ||
+            (c.得意先名 && String(c.得意先名).toLowerCase().includes(lowerTerm)) ||
+            (c.フリガナ && String(c.フリガナ).toLowerCase().includes(lowerTerm)) ||
+            (c.直送先名 && String(c.直送先名).toLowerCase().includes(lowerTerm))
         ).slice(0, 10);
     };
 
