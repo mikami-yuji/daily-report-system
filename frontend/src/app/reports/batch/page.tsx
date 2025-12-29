@@ -101,8 +101,22 @@ export default function BatchReportPage() {
         }
     }, [selectedFile]);
 
-    // 行動内容オプション
-    const actionOptions = ['訪問', '電話', '外出時間', 'クレーム対応'];
+    // 行動内容オプション（NewReportModalと同じ）
+    const actionOptions = [
+        '-',
+        '訪問（アポあり）',
+        '訪問（アポなし）',
+        '訪問（新規）',
+        '訪問（クレーム）',
+        '電話商談',
+        '電話アポ取り',
+        'メール商談',
+        '量販店調査',
+        '社内（半日）',
+        '社内（１日）',
+        '外出時間',
+        'その他'
+    ];
 
     // 訪問追加
     const addVisit = (): void => {
