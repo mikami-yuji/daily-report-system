@@ -145,12 +145,12 @@ if os.path.exists(EXCEL_DIR):
 class ReportInput(BaseModel):
     model_config = {"populate_by_name": True, "extra": "ignore"}  # 余分なフィールドを無視
     
-    日付: str
-    行動内容: str
+    日付: str = ""
+    行動内容: str = ""
     エリア: str = ""
     得意先CD: str = ""
     直送先CD: str = ""
-    訪問先名: str
+    訪問先名: str = ""
     直送先名: str = ""
     重点顧客: str = ""
     ランク: str = ""
