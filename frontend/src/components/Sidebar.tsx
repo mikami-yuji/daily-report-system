@@ -67,7 +67,7 @@ export default function Sidebar() {
     const navItems = [
         { name: 'ホーム', href: '/', icon: LayoutDashboard },
         { name: '日報一覧', href: '/reports', icon: FileText },
-        { name: '一括入力', href: '/reports/batch', icon: ClipboardList },
+        { name: '新規日報作成', href: '/reports/batch', icon: ClipboardList },
         { name: '得意先一覧', href: '/customers', icon: Users },
         { name: 'カレンダー', href: '/calendar', icon: Calendar },
         { name: 'デザイン検索', href: '/design-search', icon: Package },
