@@ -6,11 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, field_validator
 import pandas as pd
 import openpyxl
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import shutil
 import json
-from typing import Optional
+import pickle
+import hashlib
+from typing import Optional, List, Dict, Any
 
 
 import logging
@@ -269,16 +271,53 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
     current_mtime = os.path.getmtime(excel_file)
     cache_key = (filename, sheet_name)
     
+    # --- In-Memory Cache Check ---
     if cache_key in CACHE:
         cached_data = CACHE[cache_key]
         if cached_data['mtime'] == current_mtime:
             return cached_data['df'].copy() # Return copy to prevent mutation of cached data
+
+    # --- Disk Cache Check ---
+    # Create cache directory if needed
+    CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+        
+    # Create unique cache filename based on file path and sheet
+    cache_id = hashlib.md5(f"{filename}_{sheet_name}".encode('utf-8')).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{cache_id}.pkl")
+    
+    try:
+        if os.path.exists(cache_path):
+            with open(cache_path, 'rb') as f:
+                disk_cache = pickle.load(f)
             
-    # Read from file
+            # Use disk cache if timestamp matches
+            if disk_cache.get('mtime') == current_mtime:
+                logging.debug(f"Loaded {filename} ({sheet_name}) from disk cache")
+                df = disk_cache['df']
+                # Update in-memory cache
+                CACHE[cache_key] = {'mtime': current_mtime, 'df': df}
+                return df.copy()
+    except Exception as e:
+        logging.warning(f"Failed to load from disk cache: {e}")
+
+    # --- Read from Excel (Expensive Operation) ---
     try:
         logging.debug(f"Reading Excel {excel_file}, sheet={sheet_name}")
         df = pd.read_excel(excel_file, sheet_name=sheet_name, header=0)
+        
+        # Update in-memory cache
         CACHE[cache_key] = {'mtime': current_mtime, 'df': df}
+        
+        # Update disk cache
+        try:
+            with open(cache_path, 'wb') as f:
+                pickle.dump({'mtime': current_mtime, 'df': df}, f)
+            logging.debug(f"Saved {filename} ({sheet_name}) to disk cache")
+        except Exception as e:
+            logging.warning(f"Failed to save disk cache: {e}")
+            
         return df.copy()
     except Exception as e:
         logging.error(f"Reading Excel failed: {e}")
