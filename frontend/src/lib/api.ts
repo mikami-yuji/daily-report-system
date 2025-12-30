@@ -101,6 +101,17 @@ export const updateReportComment = async (
     return response.data;
 };
 
+// 承認チェック更新専用API（上長、山澄常務、岡本常務、中野次長、既読チェックを個別に更新）
+export const updateReportApproval = async (
+    managementNumber: number,
+    approval: { 上長?: string; 山澄常務?: string; 岡本常務?: string; 中野次長?: string; 既読チェック?: string },
+    filename?: string
+): Promise<{ success: boolean }> => {
+    const params = filename ? { filename } : {};
+    const response = await api.patch(`${API_URL}/reports/${managementNumber}/approval`, approval, { params });
+    return response.data;
+};
+
 export const deleteReport = async (managementNumber: number, filename?: string) => {
     const params = filename ? { filename } : {};
     const response = await api.delete(`${API_URL}/reports/${managementNumber}`, { params });

@@ -767,6 +767,14 @@ class CommentInput(BaseModel):
     上長コメント: Optional[str] = None
     コメント返信欄: Optional[str] = None
 
+# 承認チェック更新専用
+class ApprovalInput(BaseModel):
+    上長: Optional[str] = None
+    山澄常務: Optional[str] = None
+    岡本常務: Optional[str] = None
+    中野次長: Optional[str] = None
+    既読チェック: Optional[str] = None
+
 # 後方互換性のため
 class ReplyInput(BaseModel):
     コメント返信欄: str
@@ -916,6 +924,90 @@ def update_report_comment(management_number: int, comment: CommentInput, backgro
     except Exception as e:
         import traceback
         logging.error(f"update_report_comment: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/reports/{management_number}/approval")
+def update_report_approval(management_number: int, approval: ApprovalInput, background_tasks: BackgroundTasks, filename: str = DEFAULT_EXCEL_FILE):
+    """承認チェック（上長、山澄常務、岡本常務、中野次長、既読チェック）を個別に更新"""
+    import tempfile
+    import shutil
+    
+    logging.debug(f"update_report_approval: management_number={management_number}")
+    try:
+        excel_file = os.path.join(EXCEL_DIR, filename)
+        
+        wb = openpyxl.load_workbook(excel_file, keep_vba=True)
+        if '営業日報' not in wb.sheetnames:
+            raise HTTPException(status_code=404, detail="Sheet '営業日報' not found")
+        
+        ws = wb['営業日報']
+        
+        # Find the row
+        target_row = None
+        for row in range(2, ws.max_row + 1):
+            if ws.cell(row=row, column=1).value == management_number:
+                target_row = row
+                break
+        
+        if not target_row:
+            wb.close()
+            raise HTTPException(status_code=404, detail=f"Report {management_number} not found")
+        
+        # Update only provided fields
+        # Column mapping: 24=上長, 25=山澄常務, 26=岡本常務, 27=中野次長, 28=既読チェック
+        column_mapping = {
+            '上長': 24,
+            '山澄常務': 25,
+            '岡本常務': 26,
+            '中野次長': 27,
+            '既読チェック': 28
+        }
+        
+        if approval.上長 is not None:
+            ws.cell(row=target_row, column=column_mapping['上長'], value=approval.上長)
+        if approval.山澄常務 is not None:
+            ws.cell(row=target_row, column=column_mapping['山澄常務'], value=approval.山澄常務)
+        if approval.岡本常務 is not None:
+            ws.cell(row=target_row, column=column_mapping['岡本常務'], value=approval.岡本常務)
+        if approval.中野次長 is not None:
+            ws.cell(row=target_row, column=column_mapping['中野次長'], value=approval.中野次長)
+        if approval.既読チェック is not None:
+            ws.cell(row=target_row, column=column_mapping['既読チェック'], value=approval.既読チェック)
+        
+        # 安全な保存
+        temp_dir = tempfile.gettempdir()
+        temp_file = os.path.join(temp_dir, f"temp_{filename}")
+        
+        try:
+            wb.save(temp_file)
+            wb.close()
+            
+            test_wb = openpyxl.load_workbook(temp_file, read_only=True)
+            test_wb.close()
+            
+            shutil.copy2(temp_file, excel_file)
+        finally:
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+        
+        # Clear cache
+        cache_key = (filename, '営業日報')
+        if cache_key in CACHE:
+            del CACHE[cache_key]
+        
+        # Create backup in background
+        background_tasks.add_task(create_backup, excel_file)
+        
+        return {"success": True, "management_number": management_number}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logging.error(f"update_report_approval: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

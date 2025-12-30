@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Report, updateReport, deleteReport, updateReportComment } from '@/lib/api';
+import { Report, updateReport, deleteReport, updateReportComment, updateReportApproval } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
 import { sanitizeReport, cleanText } from '@/lib/reportUtils';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -69,16 +69,8 @@ export default function ReportDetailModal({ report, onClose, onNext, onPrev, has
 
         setSaving(true);
         try {
-            // Prepare full report
-            const { 管理番号, ...rest } = report;
-            const fullReport = {
-                ...rest,
-                ...approvals, // Use current approvals state
-                [field]: newValue,
-                ...comments // Also include current comments
-            };
-            const sanitized = sanitizeReport(fullReport);
-            await updateReport(report.管理番号, sanitized, selectedFile);
+            // 承認専用エンドポイントを使用（バリデーションエラー回避）
+            await updateReportApproval(report.管理番号, { [field]: newValue }, selectedFile);
             if (onUpdate) onUpdate();
         } catch (error) {
             console.error('Failed to update approval:', error);
