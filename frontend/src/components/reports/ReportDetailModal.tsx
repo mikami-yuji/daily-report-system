@@ -33,12 +33,17 @@ function InfoRow({ label, value }: { label: string; value: any }) {
 
 export default function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, onEdit, onUpdate }: ReportDetailModalProps) {
     const { selectedFile } = useFile();
+    // Excelの「済」をUIでは「✓」として表示
+    const convertToDisplay = (value: string | undefined): string => {
+        if (value === '済') return '✓';
+        return value || '';
+    };
     const [approvals, setApprovals] = useState({
-        上長: report.上長 || '',
-        山澄常務: report.山澄常務 || '',
-        岡本常務: report.岡本常務 || '',
-        中野次長: report.中野次長 || '',
-        既読チェック: report.既読チェック || ''
+        上長: convertToDisplay(report.上長),
+        山澄常務: convertToDisplay(report.山澄常務),
+        岡本常務: convertToDisplay(report.岡本常務),
+        中野次長: convertToDisplay(report.中野次長),
+        既読チェック: convertToDisplay(report.既読チェック)
     });
     const [comments, setComments] = useState({
         上長コメント: report.上長コメント || '',
@@ -64,13 +69,16 @@ export default function ReportDetailModal({ report, onClose, onNext, onPrev, has
     }, [hasNext, hasPrev, onNext, onPrev, onClose]);
 
     const handleApprovalChange = async (field: keyof typeof approvals) => {
-        const newValue = approvals[field] === '✓' ? '' : '✓';
-        setApprovals(prev => ({ ...prev, [field]: newValue }));
+        // UIでは✓表示、Excelには「済」を書き込む
+        const isChecked = approvals[field] === '✓' || approvals[field] === '済';
+        const newDisplayValue = isChecked ? '' : '✓';  // UI表示用
+        const newExcelValue = isChecked ? '' : '済';   // Excel書き込み用
+        setApprovals(prev => ({ ...prev, [field]: newDisplayValue }));
 
         setSaving(true);
         try {
             // 承認専用エンドポイントを使用（バリデーションエラー回避）
-            await updateReportApproval(report.管理番号, { [field]: newValue }, selectedFile);
+            await updateReportApproval(report.管理番号, { [field]: newExcelValue }, selectedFile);
             if (onUpdate) onUpdate();
         } catch (error) {
             console.error('Failed to update approval:', error);
