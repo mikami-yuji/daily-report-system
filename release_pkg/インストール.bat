@@ -1,5 +1,5 @@
 @echo off
-chcp 65001 >nul
+chcp 932 >nul
 echo Installing dependencies...
 
 :: Check for python
@@ -9,9 +9,9 @@ if %errorlevel% neq 0 (
     set PYTHON_CMD=py
     where py >nul 2>&1
     if %errorlevel% neq 0 (
-        echo Error: Pythonが見つかりません。
-        echo Python公式サイト (https://python.org) からインストールしてください。
-        echo ※インストール時に「Add Python to PATH」にチェックを入れてください。
+        echo Error: Python is not found.
+        echo Please install Python from https://python.org
+        echo Make sure to check "Add Python to PATH" during installation.
         pause
         exit /b
     )
@@ -25,13 +25,13 @@ echo Installing libraries (this may take a while)...
 
 if %errorlevel% neq 0 (
     echo.
-    echo Error: インストールに失敗しました。
-    echo ネットワーク接続や権限を確認してください。
+    echo Error: Installation failed.
+    echo Please check your network connection and permissions.
     pause
     exit /b
 )
 
 echo.
-echo Done. インストールが完了しました。
-echo 「起動.bat」を実行してください。
+echo Done. Installation completed successfully.
+echo Please run "起動.bat" to start the application.
 pause

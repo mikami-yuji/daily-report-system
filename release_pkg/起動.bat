@@ -1,5 +1,5 @@
 @echo off
-chcp 65001 >nul
+chcp 932 >nul
 echo Starting Daily Report System...
 
 :: Check for python
@@ -9,9 +9,9 @@ if %errorlevel% neq 0 (
     set PYTHON_CMD=py
     where py >nul 2>&1
     if %errorlevel% neq 0 (
-        echo Error: Pythonが見つかりません。
-        echo Python公式サイト (https://python.org) からインストールしてください。
-        echo ※インストール時に「Add Python to PATH」にチェックを入れてください。
+        echo Error: Python is not found.
+        echo Please install Python from https://python.org
+        echo Make sure to check "Add Python to PATH" during installation.
         pause
         exit /b
     )
@@ -24,8 +24,8 @@ echo Python environment: %PYTHON_CMD%
 echo Checking libraries...
 %PYTHON_CMD% -c "import fastapi; import uvicorn; import pandas" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Error: 必要なライブラリが見つかりません。
-    echo 「インストール.bat」を実行してください。
+    echo Error: Required libraries not found.
+    echo Please run install.bat first.
     echo.
     echo --- Error Details ---
     %PYTHON_CMD% -c "import fastapi; import uvicorn; import pandas"
