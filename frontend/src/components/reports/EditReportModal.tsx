@@ -151,8 +151,9 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
         }));
     };
 
-    const isMinimalUI = ['社内（１日）', '社内（半日）', '量販店調査', '外出時間'].includes(formData.行動内容);
+    const isMinimalUI = ['社内（１日）', '社内（半日）', '外出時間'].includes(formData.行動内容);
     const isOuting = formData.行動内容 === '外出時間';
+
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (!submitting && e.target === e.currentTarget) onClose(); }}>

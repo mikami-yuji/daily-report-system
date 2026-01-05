@@ -302,8 +302,8 @@ export default function BatchReportPage() {
         visits.forEach(visit => {
             const visitErrors: ValidationErrors[string] = {};
 
-            // 得意先CDチェック（行動内容が社内・量販店調査以外の場合は必須）
-            const isInternalAction = ['社内（半日）', '社内（１日）', '量販店調査'].includes(visit.行動内容);
+            // 得意先CDチェック（行動内容が社内・外出時間以外の場合は必須）
+            const isInternalAction = ['社内（半日）', '社内（１日）', '外出時間'].includes(visit.行動内容);
             if (!isInternalAction && !visit.得意先CD) {
                 visitErrors.得意先CD = '得意先を選択してください';
                 hasError = true;
@@ -351,9 +351,9 @@ export default function BatchReportPage() {
             return;
         }
 
-        // 有効なデータのみ抽出（社内・量販店調査は得意先不要）
+        // 有効なデータのみ抽出（社内・外出時間は得意先不要）
         const validVisits = visits.filter(v => {
-            const isInternalAction = ['社内（半日）', '社内（１日）', '量販店調査'].includes(v.行動内容);
+            const isInternalAction = ['社内（半日）', '社内（１日）', '外出時間'].includes(v.行動内容);
             return (isInternalAction || v.得意先CD) && v.行動内容 && v.行動内容 !== '-';
         });
 
@@ -617,8 +617,8 @@ export default function BatchReportPage() {
                                                 }
                                             }}
                                             className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue focus:border-transparent ${showErrors && validationErrors[visit.id]?.行動内容
-                                                    ? 'border-red-500 bg-red-50'
-                                                    : 'border-sf-border'
+                                                ? 'border-red-500 bg-red-50'
+                                                : 'border-sf-border'
                                                 }`}
                                         >
                                             <option value="">選択してください</option>
