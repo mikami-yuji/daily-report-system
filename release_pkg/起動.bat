@@ -1,6 +1,11 @@
 @echo off
 chcp 932 >nul
+
+:: Change to the directory where this batch file is located
+cd /d "%~dp0"
+
 echo Starting Daily Report System...
+echo Current directory: %CD%
 
 :: Check for python
 set PYTHON_CMD=python
@@ -25,11 +30,19 @@ echo Checking libraries...
 %PYTHON_CMD% -c "import fastapi; import uvicorn; import pandas" >nul 2>&1
 if %errorlevel% neq 0 (
     echo Error: Required libraries not found.
-    echo Please run install.bat first.
+    echo Please run install batch first.
     echo.
     echo --- Error Details ---
     %PYTHON_CMD% -c "import fastapi; import uvicorn; import pandas"
     echo ---------------------
+    pause
+    exit /b
+)
+
+:: Check if main.py exists
+if not exist "backend\main.py" (
+    echo Error: backend\main.py not found.
+    echo Current directory: %CD%
     pause
     exit /b
 )

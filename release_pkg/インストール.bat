@@ -1,6 +1,11 @@
 @echo off
 chcp 932 >nul
+
+:: Change to the directory where this batch file is located
+cd /d "%~dp0"
+
 echo Installing dependencies...
+echo Current directory: %CD%
 
 :: Check for python
 set PYTHON_CMD=python
@@ -20,6 +25,16 @@ if %errorlevel% neq 0 (
 echo Using Python: %PYTHON_CMD%
 %PYTHON_CMD% --version
 echo.
+
+:: Check if requirements.txt exists
+if not exist "backend\requirements.txt" (
+    echo Error: backend\requirements.txt not found.
+    echo Current directory: %CD%
+    dir backend
+    pause
+    exit /b
+)
+
 echo Installing libraries (this may take a while)...
 %PYTHON_CMD% -m pip install -r backend\requirements.txt
 
@@ -33,5 +48,5 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Done. Installation completed successfully.
-echo Please run "起動.bat" to start the application.
+echo Please run the startup batch file to start the application.
 pause
