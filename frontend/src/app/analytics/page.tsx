@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useFile } from '@/context/FileContext';
 import { useReports } from '@/hooks/useQueryHooks';
-import { aggregateAnalytics, getDateRange, AnalyticsData } from '@/lib/analytics';
+import { aggregateAnalytics, getDateRange, AnalyticsData, aggregatePriorityMatrix, PriorityMatrixData } from '@/lib/analytics';
+import { getPriorityCustomers, PriorityCustomer, getCustomers, Customer } from '@/lib/api';
 import KPICard from '@/components/KPICard';
 import { Users, FileText, Briefcase, CheckCircle, XCircle, TrendingUp, Phone, Mail, LayoutDashboard, MessageSquare, Palette, Star } from 'lucide-react';
 import {
@@ -14,6 +15,8 @@ import toast from 'react-hot-toast';
 
 type Period = 'today' | 'week' | 'month' | 'quarter' | 'year';
 type Tab = 'overview' | 'business' | 'design' | 'priority';
+type MatrixMode = 'weekly' | 'monthly';
+type MatrixMetric = 'visits' | 'calls' | 'total';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -27,6 +30,12 @@ export default function AnalyticsPage() {
     const [period, setPeriod] = useState<Period>('month');
     const [activeTab, setActiveTab] = useState<Tab>('overview');
 
+    // 重点顧客マトリクス用の状態
+    const [matrixMode, setMatrixMode] = useState<MatrixMode>('monthly');
+    const [matrixMetric, setMatrixMetric] = useState<MatrixMetric>('total');
+    const [priorityCustomers, setPriorityCustomers] = useState<PriorityCustomer[]>([]);
+    const [matrixData, setMatrixData] = useState<PriorityMatrixData | null>(null);
+    const [customerNameMap, setCustomerNameMap] = useState<Map<string, string>>(new Map());
     // エラー時のtoast表示
     useEffect(() => {
         if (error) {
@@ -34,16 +43,102 @@ export default function AnalyticsPage() {
         }
     }, [error]);
 
+    // 重点顧客マスタを取得
+    useEffect(() => {
+        if (selectedFile) {
+            getPriorityCustomers(selectedFile)
+                .then(data => setPriorityCustomers(data))
+                .catch(err => {
+                    console.error('Failed to load priority customers:', err);
+                    setPriorityCustomers([]);
+                });
+
+            // 得意先一覧から名前マッピングを取得
+            getCustomers(selectedFile)
+                .then(customers => {
+                    const nameMap = new Map<string, string>();
+                    customers.forEach(c => {
+                        const code = String(c.得意先CD || '').replace(/\.0$/, '').trim();
+                        const name = c.得意先名 || '';
+                        if (code && name) {
+                            nameMap.set(code, name);
+                        }
+                    });
+                    setCustomerNameMap(nameMap);
+                })
+                .catch(err => console.error('Failed to load customers:', err));
+        }
+    }, [selectedFile]);
+
     useEffect(() => {
         if (reports.length > 0) {
             calculateAnalytics();
         }
     }, [reports, period]);
 
+    // ファイル名から担当者名を抽出する関数
+    // 例: 「本社002　2025年度用日報【山下（尚）次長】.xlsm」→「山下尚」
+    // 例: 「本社001　2025年度用日報【田中課長】.xlsm」→「田中」
+    const extractStaffNameFromFilename = (filename: string): string | null => {
+        if (!filename) return null;
+
+        // 【...】の中身を抽出
+        const match = filename.match(/【(.+?)】/);
+        if (!match) return null;
+
+        const content = match[1]; // 例: 「山下（尚）次長」or「田中課長」
+
+        // 括弧内の名前を抽出
+        const nameWithParenMatch = content.match(/^(.+?)（(.+?)）/);
+        if (nameWithParenMatch) {
+            // 「山下（尚）」→「山下尚」
+            return nameWithParenMatch[1] + nameWithParenMatch[2];
+        }
+
+        // 括弧がない場合は、役職を除いた苗字のみ
+        // 「田中課長」→「田中」（役職を除去）
+        const surnameMatch = content.match(/^([^\u4e00-\u9fa5]*[\u4e00-\u9fa5]+?)(?:課長|次長|部長|常務|社長|主任|係長|専務|取締役|マネージャー|リーダー|担当|氏)?$/);
+        if (surnameMatch) {
+            return surnameMatch[1];
+        }
+
+        // フォールバック: 最初の2-4文字を苗字として扱う
+        return content.slice(0, 2);
+    };
+
+    // マトリクスデータを更新（担当者でフィルタリング）
+    useEffect(() => {
+        if (reports.length > 0) {
+            // ファイル名から担当者名を抽出
+            const staffName = selectedFile ? extractStaffNameFromFilename(selectedFile) : null;
+
+            // 担当者でフィルタリング
+            let filteredPriorityCustomers = priorityCustomers;
+            if (staffName && priorityCustomers.length > 0) {
+                filteredPriorityCustomers = priorityCustomers.filter(c => {
+                    const customerStaff = c.担当者 || '';
+                    // 担当者名が含まれているかチェック（部分一致）
+                    return customerStaff.includes(staffName) || staffName.includes(customerStaff);
+                });
+            }
+
+            const data = aggregatePriorityMatrix(reports, filteredPriorityCustomers, matrixMode, matrixMetric);
+            setMatrixData(data);
+        }
+    }, [reports, priorityCustomers, matrixMode, matrixMetric, selectedFile]);
+
     const calculateAnalytics = () => {
         const { start, end } = getDateRange(period);
         const analyticsData = aggregateAnalytics(reports, start, end);
         setAnalytics(analyticsData);
+    };
+
+    // ヒートマップの背景色を取得
+    const getHeatmapColor = (value: number): string => {
+        if (value === 0) return 'bg-gray-100 text-gray-400';
+        if (value <= 2) return 'bg-blue-100 text-blue-700';
+        if (value <= 5) return 'bg-blue-300 text-blue-800';
+        return 'bg-blue-500 text-white';
     };
 
     if (isLoading) {
@@ -306,10 +401,10 @@ export default function AnalyticsPage() {
             )}
 
             {activeTab === 'priority' && (
-                <div className="space-y-8 animate-fadeIn">
+                <div className="space-y-6 animate-fadeIn">
                     {/* Priority KPIs */}
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        <KPICard title="重点顧客数" value={analytics.priority.totalCustomers} icon={Star} color="yellow" />
+                        <KPICard title="重点顧客数" value={matrixData?.customers.length || 0} icon={Star} color="yellow" />
                         <KPICard title="訪問数" value={analytics.priority.totalVisits} icon={Users} color="blue" />
                         <KPICard title="電話数" value={analytics.priority.totalCalls} icon={Phone} color="orange" />
                         <KPICard title="デザイン依頼" value={analytics.priority.totalProposals} icon={FileText} color="purple" />
@@ -317,73 +412,146 @@ export default function AnalyticsPage() {
                         <KPICard title="出稿率" value={`${analytics.priority.acceptanceRate}%`} icon={TrendingUp} color="red" />
                     </div>
 
-                    {/* Priority Customer List */}
+                    {/* Matrix Controls */}
                     <div className="bg-white rounded-lg shadow p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">重点顧客別活動状況</h2>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">重点顧客 活動マトリクス</h2>
+
+                            <div className="flex flex-wrap gap-4">
+                                {/* Mode Toggle */}
+                                <div className="flex bg-gray-100 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setMatrixMode('monthly')}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${matrixMode === 'monthly'
+                                            ? 'bg-white text-gray-900 shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        月別
+                                    </button>
+                                    <button
+                                        onClick={() => setMatrixMode('weekly')}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${matrixMode === 'weekly'
+                                            ? 'bg-white text-gray-900 shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        週別
+                                    </button>
+                                </div>
+
+                                {/* Metric Toggle */}
+                                <div className="flex bg-gray-100 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setMatrixMetric('total')}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${matrixMetric === 'total'
+                                            ? 'bg-blue-500 text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        合計
+                                    </button>
+                                    <button
+                                        onClick={() => setMatrixMetric('visits')}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${matrixMetric === 'visits'
+                                            ? 'bg-blue-500 text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        訪問
+                                    </button>
+                                    <button
+                                        onClick={() => setMatrixMetric('calls')}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${matrixMetric === 'calls'
+                                            ? 'bg-blue-500 text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        電話
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Matrix Table */}
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3">顧客名</th>
-                                        <th className="px-6 py-3 text-center">訪問</th>
-                                        <th className="px-6 py-3 text-center">電話</th>
-                                        <th className="px-6 py-3 text-center">依頼</th>
-                                        <th className="px-6 py-3 text-center">出稿</th>
-                                        <th className="px-6 py-3 text-center">不採用</th>
-                                        <th className="px-6 py-3 text-right">最終訪問日</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {analytics.priority.byCustomer.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                                                データがありません
-                                            </td>
+                            {matrixData && matrixData.customers.length > 0 ? (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50">
+                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-50 min-w-[180px]">
+                                                顧客名
+                                            </th>
+                                            {matrixData.periods.map((period, idx) => (
+                                                <th key={idx} className="px-2 py-3 text-center font-semibold text-gray-700 min-w-[60px]">
+                                                    {period}
+                                                </th>
+                                            ))}
+                                            <th className="px-3 py-3 text-center font-bold text-gray-900 bg-gray-100 min-w-[60px]">
+                                                合計
+                                            </th>
+                                            <th className="px-3 py-3 text-right text-gray-700 min-w-[100px]">
+                                                最終活動
+                                            </th>
                                         </tr>
-                                    ) : (
-                                        analytics.priority.byCustomer.map((customer, index) => (
-                                            <tr key={index} className="bg-white border-b hover:bg-gray-50">
-                                                <td className="px-6 py-4 font-medium text-gray-900">
-                                                    {customer.name}
+                                    </thead>
+                                    <tbody>
+                                        {matrixData.customers.map((customer, idx) => (
+                                            <tr key={idx} className="border-b hover:bg-gray-50">
+                                                <td className="px-4 py-2 font-medium text-gray-900 sticky left-0 bg-white">
+                                                    <div className="min-w-[200px] max-w-[280px] text-sm leading-tight" title={customerNameMap.get(customer.code) || customer.name || customer.code}>
+                                                        {customerNameMap.get(customer.code)
+                                                            || (customer.name && customer.name !== 'nan' && customer.name !== 'undefined' ? customer.name : `得意先${customer.code}`)}
+                                                    </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.visits > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                                {customer.values.map((value, vIdx) => (
+                                                    <td key={vIdx} className="px-2 py-3 text-center">
+                                                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-md text-xs font-bold ${getHeatmapColor(value)}`}>
+                                                            {value}
+                                                        </span>
+                                                    </td>
+                                                ))}
+                                                <td className="px-3 py-3 text-center bg-gray-50">
+                                                    <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-sm font-bold ${customer.total > 0 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                                                         }`}>
-                                                        {customer.visits}
+                                                        {customer.total}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.calls > 0 ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {customer.calls}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.proposals > 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {customer.proposals}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.completed > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {customer.completed}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.rejected > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {customer.rejected}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right text-gray-500">
-                                                    {customer.lastVisit || '-'}
+                                                <td className="px-3 py-3 text-right text-gray-500 text-xs">
+                                                    {customer.lastActivity || '-'}
                                                 </td>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    {priorityCustomers.length === 0
+                                        ? '重点顧客マスタを読み込んでいます...'
+                                        : 'データがありません'}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Legend */}
+                        <div className="mt-4 flex items-center gap-4 text-xs text-gray-500 border-t pt-4">
+                            <span>凡例:</span>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-6 h-6 rounded bg-gray-100"></span>
+                                <span>0</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-6 h-6 rounded bg-blue-100"></span>
+                                <span>1-2</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-6 h-6 rounded bg-blue-300"></span>
+                                <span>3-5</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-6 h-6 rounded bg-blue-500"></span>
+                                <span>6+</span>
+                            </div>
                         </div>
                     </div>
                 </div>

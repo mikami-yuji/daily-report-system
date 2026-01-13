@@ -69,29 +69,55 @@ export default function CustomersPage() {
                 return nameMatch || codeMatch || ddNameMatch || ddCodeMatch;
             };
 
-            const checkFilters = (c: CustomerSummary) => {
+            const checkFilters = (c: CustomerSummary, checkPriorityForSub: boolean = false) => {
                 if (selectedArea && c.area !== selectedArea) return false;
                 if (selectedRank && c.rank !== selectedRank) return false;
-                if (isPriorityOnly && !c.isPriority) return false;
+                // 重点フィルターは親と子で別々にチェック
+                if (!checkPriorityForSub && isPriorityOnly && !c.isPriority) return false;
                 return true;
             };
 
             result = result.map(parent => {
-                // Check if parent matches strict filters (Area, Rank, Priority)
-                if (!checkFilters(parent)) return null;
+                // 親（得意先）のフィルターチェック（エリア、ランク）
+                if (selectedArea && parent.area !== selectedArea) return null;
+                if (selectedRank && parent.rank !== selectedRank) return null;
 
-                // Check text search
+                // 重点フィルターの場合は、親か子のどちらかが重点であればOK
+                const parentIsPriority = parent.isPriority;
+                const prioritySubItems = parent.subItems?.filter(sub => sub.isPriority) || [];
+
+                if (isPriorityOnly) {
+                    // 親も子も重点でなければ除外
+                    if (!parentIsPriority && prioritySubItems.length === 0) return null;
+
+                    // 重点の子だけをフィルタリング
+                    const filteredSubs = prioritySubItems;
+
+                    // 検索条件もチェック
+                    if (term) {
+                        const parentMatches = checkMatch(parent);
+                        const matchingSubs = filteredSubs.filter(sub => checkMatch(sub));
+
+                        if (parentMatches || matchingSubs.length > 0) {
+                            if (matchingSubs.length > 0) {
+                                autoExpandIds.add(parent.id);
+                            }
+                            return { ...parent, subItems: parentIsPriority ? filteredSubs : matchingSubs };
+                        }
+                        return null;
+                    }
+
+                    return { ...parent, subItems: filteredSubs };
+                }
+
+                // 重点フィルターなしの場合
                 const parentMatches = term ? checkMatch(parent) : true;
-
-                // Filter subItems
                 let filteredSubs = parent.subItems || [];
                 if (term) {
                     filteredSubs = filteredSubs.filter(sub => checkMatch(sub));
                 }
 
-                // Decision: Show Parent if Parent matches OR any Sub matches
                 if (parentMatches || filteredSubs.length > 0) {
-                    // If we have search term, and sub matches, expand parent
                     if (term && filteredSubs.length > 0) {
                         autoExpandIds.add(parent.id);
                         if (!parentMatches) {
@@ -101,7 +127,6 @@ export default function CustomersPage() {
                     if (parentMatches) {
                         return { ...parent };
                     }
-
                     return { ...parent, subItems: filteredSubs };
                 }
                 return null;

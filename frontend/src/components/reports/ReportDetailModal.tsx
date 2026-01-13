@@ -46,7 +46,7 @@ export default function ReportDetailModal({ report, onClose, onNext, onPrev, has
         既読チェック: convertToDisplay(report.既読チェック)
     });
     const [comments, setComments] = useState({
-        上長コメント: report.上長コメント || '',
+        上長コメント: report.上長コメント || report.コメント || '',
         コメント返信欄: report.コメント返信欄 || ''
     });
     const [saving, setSaving] = useState(false);

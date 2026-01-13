@@ -373,7 +373,89 @@ def get_customers(filename: str = DEFAULT_EXCEL_FILE):
         return cleaned_records
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/priority-customers")
+def get_priority_customers(filename: str = DEFAULT_EXCEL_FILE):
+    """得意先_Listからカラム H (重点顧客) が「重点」の顧客を取得。カラム I の担当者情報も含める"""
+    try:
+        # 得意先_Listを読み込み
+        df = get_cached_dataframe(filename, '得意先_List')
         
+        # カラム名をクリーンアップ
+        df.columns = [str(col).replace('\n', '').strip() for col in df.columns]
+        
+        # カラム名を保存
+        col_customer_cd = df.columns[0]  # 得意先CD
+        col_customer_name = df.columns[1] if len(df.columns) > 1 else None  # 得意先名
+        col_priority = df.columns[7] if len(df.columns) > 7 else None  # カラムH: 重点顧客
+        col_staff = df.columns[8] if len(df.columns) > 8 else None  # カラムI: 担当者
+        
+        # 得意先CDがある行のみ抽出（ヘッダー行や空行を除外）
+        df = df.dropna(subset=[col_customer_cd])
+        
+        # カラム H の名前を特定
+        priority_col = col_priority
+        if not priority_col:
+            # フォールバック: 「重点顧客」という名前のカラムを探す
+            for col in df.columns:
+                if '重点' in str(col):
+                    priority_col = col
+                    break
+            if not priority_col:
+                logging.warning(f"Priority column not found. Columns: {list(df.columns)}")
+                return []
+        
+        logging.info(f"Priority column: {priority_col}, Staff column: {col_staff}")
+        
+        # 「重点」と記載されている行のみ抽出
+        priority_df = df[df[priority_col].astype(str).str.contains('重点', na=False)]
+        
+        logging.info(f"Found {len(priority_df)} priority customers")
+        
+        # レコードを作成
+        records = []
+        for _, row in priority_df.iterrows():
+            customer_cd = row[col_customer_cd]
+            customer_name = row[col_customer_name] if col_customer_name else ''
+            staff = row[col_staff] if col_staff else ''
+            
+            # CDをクリーンアップ
+            if isinstance(customer_cd, float):
+                import math
+                if math.isnan(customer_cd):
+                    continue
+                customer_cd = str(int(customer_cd))
+            else:
+                customer_cd = str(customer_cd).strip()
+            
+            if not customer_cd:
+                continue
+            
+            # 担当者をクリーンアップ
+            if isinstance(staff, float):
+                import math
+                if math.isnan(staff):
+                    staff = ''
+                else:
+                    staff = str(staff)
+            else:
+                staff = str(staff).strip() if staff else ''
+                
+            records.append({
+                '得意先CD': customer_cd,
+                '得意先名': str(customer_name).strip() if customer_name else '',
+                '担当者': staff
+            })
+        
+        return records
+    except Exception as e:
+        logging.error(f"Error in get_priority_customers: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 @app.get("/interviewers")
 def get_interviewers(customer_code: str, filename: str = DEFAULT_EXCEL_FILE):

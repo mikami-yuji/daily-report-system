@@ -478,3 +478,220 @@ export function getDateRange(period: 'today' | 'week' | 'month' | 'quarter' | 'y
 
     return { start, end };
 }
+
+// 重点顧客マトリクスデータの型
+export type PriorityMatrixData = {
+    periods: string[];  // 期間ラベル（「1月」「12/2週」など）
+    customers: {
+        code: string;
+        name: string;
+        values: number[];  // 各期間の値
+        total: number;
+        lastActivity: string | null;
+    }[];
+};
+
+// 週番号を取得（ISO週番号）
+function getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+// 週の開始日を取得（月曜日）
+function getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+// 重点顧客の週別・月別マトリクス集計
+export function aggregatePriorityMatrix(
+    reports: Report[],
+    priorityCustomers: { 得意先CD: string; 得意先名: string }[],
+    mode: 'weekly' | 'monthly',
+    metric: 'visits' | 'calls' | 'total'
+): PriorityMatrixData {
+    const now = new Date();
+    const periods: string[] = [];
+    const periodKeys: string[] = [];
+
+    // 期間ラベルとキーを生成
+    if (mode === 'monthly') {
+        // 過去6ヶ月
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            periods.push(`${month}月`);
+            periodKeys.push(`${year}-${String(month).padStart(2, '0')}`);
+        }
+    } else {
+        // 過去8週間
+        for (let i = 7; i >= 0; i--) {
+            const weekStart = getWeekStart(new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000));
+            const month = weekStart.getMonth() + 1;
+            const day = weekStart.getDate();
+            periods.push(`${month}/${day}週`);
+            periodKeys.push(`${weekStart.getFullYear()}-W${String(getWeekNumber(weekStart)).padStart(2, '0')}`);
+        }
+    }
+
+    // 顧客ごとのデータを初期化
+    const customerDataMap = new Map<string, {
+        code: string;
+        name: string;
+        values: Map<string, number>;
+        lastActivity: string | null;
+    }>();
+
+    // 重点顧客マスタがある場合はそれを使用、なければ日報から抽出
+    let effectivePriorityCustomers = priorityCustomers;
+
+    if (priorityCustomers.length === 0) {
+        // 日報データから重点顧客を抽出（重点顧客フラグがあるもの）
+        const priorityFromReports = new Map<string, string>();
+        reports.forEach(report => {
+            if (report.重点顧客 && report.重点顧客 !== '-' && report.重点顧客 !== '') {
+                // 得意先CDをクリーンアップ（数値の場合は整数に変換）
+                let code = report.得意先CD;
+                if (typeof code === 'number') {
+                    code = String(Math.floor(code));
+                } else {
+                    code = String(code || '').trim();
+                }
+
+                // 顧客名を取得（訪問先名 > 直送先名 > 得意先CDの順で優先）
+                let name = report.訪問先名 || report.直送先名 || '';
+                if (!name || name === 'nan' || name === 'undefined') {
+                    name = `得意先${code}`;
+                }
+
+                if (code && code !== 'nan' && code !== 'undefined' && !priorityFromReports.has(code)) {
+                    priorityFromReports.set(code, name);
+                }
+            }
+        });
+        effectivePriorityCustomers = Array.from(priorityFromReports.entries()).map(([code, name]) => ({
+            得意先CD: code,
+            得意先名: name
+        }));
+    }
+
+    // 全重点顧客を初期化（活動なしでも0で表示）
+    // 直送先がある場合は「得意先CD-直送先CD」をキーとして使用
+    effectivePriorityCustomers.forEach(c => {
+        const code = String(c.得意先CD).trim();
+        if (!customerDataMap.has(code)) {
+            customerDataMap.set(code, {
+                code,
+                name: c.得意先名,
+                values: new Map(periodKeys.map(k => [k, 0])),
+                lastActivity: null
+            });
+        }
+    });
+
+    // 日報データを集計（直送先がある場合は直送先単位で集計）
+    reports.forEach(report => {
+        const customerCode = String(report.得意先CD || '').trim();
+        if (!customerCode) return;
+
+        // 重点顧客フラグが設定されていない活動は除外
+        const priorityFlag = report.重点顧客;
+        if (!priorityFlag || priorityFlag === '-' || priorityFlag === '') return;
+
+        const directDeliveryCode = report.直送先CD ? String(report.直送先CD).replace(/\.0$/, '').trim() : '';
+        const directDeliveryName = report.直送先名 || '';
+        const customerName = report.訪問先名 || '';
+
+        // 直送先がある場合は直送先でマッチング、なければ得意先でマッチング
+        let matchKey = customerCode;
+        let displayName = customerName;
+
+        if (directDeliveryCode && directDeliveryCode !== 'nan' && directDeliveryCode !== '') {
+            // 直送先がある場合は、得意先と直送先の組み合わせでキーを作成
+            matchKey = `${customerCode}-${directDeliveryCode}`;
+            displayName = directDeliveryName
+                ? `${customerName} / ${directDeliveryName}`
+                : customerName;
+        }
+
+        // 重点顧客マスタに得意先が存在するかチェック（マスタがある場合のみ）
+        if (priorityCustomers.length > 0 && !customerDataMap.has(customerCode)) return;
+
+        const reportDate = parseDate(report.日付);
+        if (!reportDate) return;
+
+        const action = String(report.行動内容 || '');
+        const isVisit = action.includes('訪問');
+        const isCall = action.includes('電話');
+
+        // 指標に応じてカウント
+        let shouldCount = false;
+        if (metric === 'visits' && isVisit) shouldCount = true;
+        if (metric === 'calls' && isCall) shouldCount = true;
+        if (metric === 'total' && (isVisit || isCall)) shouldCount = true;
+
+        if (!shouldCount) return;
+
+        // 期間キーを計算
+        let periodKey: string;
+        if (mode === 'monthly') {
+            periodKey = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`;
+        } else {
+            const weekStart = getWeekStart(reportDate);
+            periodKey = `${weekStart.getFullYear()}-W${String(getWeekNumber(weekStart)).padStart(2, '0')}`;
+        }
+
+        // 直送先がある場合は新しいエントリを作成（なければ）
+        if (directDeliveryCode && directDeliveryCode !== 'nan' && directDeliveryCode !== '') {
+            if (!customerDataMap.has(matchKey)) {
+                customerDataMap.set(matchKey, {
+                    code: matchKey,
+                    name: displayName,
+                    values: new Map(periodKeys.map(k => [k, 0])),
+                    lastActivity: null
+                });
+            }
+            // 元の得意先エントリは削除しない（両方表示）
+        }
+
+        const customerData = customerDataMap.get(matchKey) || customerDataMap.get(customerCode);
+        if (customerData && customerData.values.has(periodKey)) {
+            customerData.values.set(periodKey, (customerData.values.get(periodKey) || 0) + 1);
+
+            // 最終活動日を更新
+            const dateStr = report.日付;
+            if (dateStr && (!customerData.lastActivity || dateStr > customerData.lastActivity)) {
+                customerData.lastActivity = dateStr;
+            }
+        }
+    });
+
+    // 結果を配列に変換
+    const customers = Array.from(customerDataMap.values()).map(data => ({
+        code: data.code,
+        name: data.name,
+        values: periodKeys.map(k => data.values.get(k) || 0),
+        total: periodKeys.reduce((sum, k) => sum + (data.values.get(k) || 0), 0),
+        lastActivity: data.lastActivity
+    }));
+
+    // 合計の降順でソート（0件の顧客は後ろに）
+    customers.sort((a, b) => {
+        if (a.total === 0 && b.total > 0) return 1;
+        if (b.total === 0 && a.total > 0) return -1;
+        return b.total - a.total;
+    });
+
+    return {
+        periods,
+        customers
+    };
+}

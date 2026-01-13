@@ -40,6 +40,7 @@ export interface Report {
     次回プラン: string;
     競合他社情報: string;
     上長コメント: string;
+    コメント?: string; // Excelヘッダーが「コメント」の場合のフォールバック
     コメント返信欄: string;
     上長: string;
     山澄常務: string;
@@ -115,6 +116,24 @@ export const updateReportApproval = async (
 export const deleteReport = async (managementNumber: number, filename?: string) => {
     const params = filename ? { filename } : {};
     const response = await api.delete(`${API_URL}/reports/${managementNumber}`, { params });
+    return response.data;
+};
+
+// 重点顧客マスタの型定義
+export type PriorityCustomer = {
+    得意先CD: string;
+    得意先名: string;
+    担当者?: string;
+};
+
+// 重点顧客マスタ取得API（得意先_Listからカラム H が「重点」の顧客を取得）
+export const getPriorityCustomers = async (filename?: string): Promise<PriorityCustomer[]> => {
+    const params = filename ? { filename } : {};
+    const response = await api.get(`${API_URL}/priority-customers`, { params });
+    if (!Array.isArray(response.data)) {
+        console.warn('getPriorityCustomers received non-array data:', response.data);
+        return [];
+    }
     return response.data;
 };
 

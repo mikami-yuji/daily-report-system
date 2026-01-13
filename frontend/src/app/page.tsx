@@ -123,8 +123,12 @@ export default function Home() {
   // --- Logic for Unread Comments ---
   // Criteria: Has Supervisor Comment AND (No Reply OR No 既読チェック)
   // 上長コメントがあり、コメント返信欄か既読チェックのどちらかが空欄のもののみ
+  // 上長コメントがあり、コメント返信欄か既読チェックのどちらかが空欄のもののみ
   const unreadComments = reports.filter(r => {
-    const supervisorComment = r.上長コメント ? String(r.上長コメント).trim() : '';
+    // Excelによってはヘッダーが「コメント」の場合があるため両方をチェック
+    const supervisorCommentRaw = r.上長コメント || r.コメント;
+    const supervisorComment = supervisorCommentRaw ? String(supervisorCommentRaw).trim() : '';
+
     const replyComment = r.コメント返信欄 ? String(r.コメント返信欄).trim() : '';
     const kidoku = r.既読チェック ? String(r.既読チェック).trim() : '';
 
@@ -272,7 +276,7 @@ export default function Home() {
                     </div>
                     <div className="text-sm text-gray-600 mt-1 line-clamp-2">
                       <span className="font-bold mr-1">上長:</span>
-                      {report.上長コメント}
+                      {report.上長コメント || report.コメント}
                     </div>
                   </div>
 

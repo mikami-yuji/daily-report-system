@@ -63,7 +63,7 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
         競合他社情報: report.競合他社情報 || '',
         重点顧客: report.重点顧客 || '',
         ランク: initialParsed.satisfaction || report.ランク || '', // ランクカラムが空でも本文から復元
-        上長コメント: report.上長コメント || '',
+        上長コメント: report.上長コメント || report.コメント || '',
         コメント返信欄: report.コメント返信欄 || ''
     });
     const [startOutTime, setStartOutTime] = useState(initialParsed.start);

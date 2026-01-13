@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -193,8 +194,20 @@ def get_cached_dataframe(filename: str, sheet_name: str) -> pd.DataFrame:
 
 
 @app.get("/customers")
-def get_customers(filename: str = DEFAULT_EXCEL_FILE):
+def get_customers(request: Request, filename: str = DEFAULT_EXCEL_FILE):
     """Get customer list from the Excel file"""
+    # Check if request is for HTML (SPA page)
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+        html_path = os.path.join(STATIC_DIR, "customers.html")
+        if os.path.exists(html_path):
+            return FileResponse(html_path)
+        # Fallback to SPA root index
+        root_index = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(root_index):
+             return FileResponse(root_index)
+
     try:
         # Get dataframe from cache
         df = get_cached_dataframe(filename, '得意先_List')
@@ -271,9 +284,49 @@ def get_interviewers(customer_code: str, filename: str = DEFAULT_EXCEL_FILE):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/reports/batch")
+async def serve_reports_batch():
+    """Serve the batch reports static page"""
+    STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+    # Try multiple possible file locations
+    possible_paths = [
+        os.path.join(STATIC_DIR, "reports", "batch.html"),
+        os.path.join(STATIC_DIR, "reports", "batch", "index.html"),
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return FileResponse(path)
+    # Fallback to index.html for SPA routing
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="Batch page not found")
+
+@app.get("/reports/batch.txt")
+async def serve_reports_batch_txt():
+    """Provide empty JSON for Next.js data request"""
+    return JSONResponse(content={})
+
+@app.get("/reports/{path:path}.txt")
+def serve_reports_data_files(path: str):
+    """Serve Next.js data files for reports to prevent 422 errors on API routes"""
+    STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+    target_path = os.path.join(STATIC_DIR, "reports", f"{path}.txt")
+    if os.path.exists(target_path):
+        return FileResponse(target_path)
+    return JSONResponse(content={})
+
 @app.get("/reports/{management_number}")
-def get_report_by_id(management_number: int, filename: str = DEFAULT_EXCEL_FILE):
+def get_report_by_id(management_number: int, request: Request, filename: str = DEFAULT_EXCEL_FILE):
     """指定された管理番号の日報を取得"""
+    # Check if request is for HTML (SPA page) - for /reports/1 etc.
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+        root_index = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(root_index):
+             return FileResponse(root_index)
+
     try:
         # Get dataframe from cache
         df = get_cached_dataframe(filename, '営業日報')
@@ -324,7 +377,24 @@ def get_report_by_id(management_number: int, filename: str = DEFAULT_EXCEL_FILE)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/reports")
-def get_reports(filename: str = DEFAULT_EXCEL_FILE):
+def get_reports(request: Request, filename: str = DEFAULT_EXCEL_FILE):
+    # Check if request is for HTML (SPA page)
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+        # Try reports.html first (Next.js export)
+        html_path = os.path.join(STATIC_DIR, "reports.html")
+        if os.path.exists(html_path):
+            return FileResponse(html_path)
+        # Fallback to reports/index.html
+        index_path = os.path.join(STATIC_DIR, "reports", "index.html")
+        if os.path.exists(index_path):
+             return FileResponse(index_path)
+        # Fallback to SPA root index
+        root_index = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(root_index):
+             return FileResponse(root_index)
+
     try:
         print(f"DEBUG: Fetching reports for {filename} from {EXCEL_DIR}")
         # Get dataframe from cache
@@ -990,7 +1060,7 @@ def get_design_images(filename: str):
 
 @app.get("/images/content")
 def serve_design_image(path: str):
-    """
+    r"""
     Serve the image file content.
     path: Relative path from DESIGN_DIR (e.g., "大阪本社　09：沖本\image.jpg")
     """
@@ -1265,10 +1335,20 @@ if os.path.exists(STATIC_DIR):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        # Check if file exists in static dir
+        # Check if file exists in static dir (exact match)
         file_path = os.path.join(STATIC_DIR, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
+            
+        # Check if it maps to a .html file (e.g. /calendar -> /calendar.html)
+        html_path = os.path.join(STATIC_DIR, f"{full_path}.html")
+        if os.path.isfile(html_path):
+             return FileResponse(html_path)
+             
+        # Check if it maps to a directory index (e.g. /calendar -> /calendar/index.html)
+        dir_index_path = os.path.join(STATIC_DIR, full_path, "index.html")
+        if os.path.isfile(dir_index_path):
+             return FileResponse(dir_index_path)
         
         # If not found, and path doesn't look like api, return index.html for SPA routing
         # (API routes are already handled by precedence)

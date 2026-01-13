@@ -1017,7 +1017,7 @@ export default function BatchReportPage() {
             </div>
 
             {/* 訪問追加ボタン */}
-            < button
+            <button
                 type="button"
                 onClick={addVisit}
                 className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-sf-text-weak hover:border-sf-light-blue hover:text-sf-light-blue transition-colors flex items-center justify-center gap-2"
