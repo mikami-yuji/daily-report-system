@@ -249,9 +249,37 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Server error details:', errorData);
-                throw new Error(`Failed to create report: ${JSON.stringify(errorData)}`);
+                const errorData = await response.json().catch(() => ({}));
+
+                if (response.status === 422) {
+                    // バリデーションエラー
+                    const details = errorData.detail || '入力内容を確認してください';
+                    toast.error(`入力エラー: ${details}`, {
+                        duration: 6000,
+                        style: {
+                            border: '1px solid #f59e0b',
+                            padding: '16px',
+                        }
+                    });
+                    throw new Error(`Validation error: ${details}`);
+                } else if (response.status === 409) {
+                    // コンフリクトエラー
+                    toast.error('データの競合が発生しました。ページを更新してください', {
+                        duration: 5000
+                    });
+                    throw new Error('Conflict error');
+                } else if (response.status >= 500) {
+                    // サーバーエラー
+                    toast.error('サーバーエラーが発生しました。しばらくしてからお試しください', {
+                        duration: 5000
+                    });
+                    throw new Error('Server error');
+                } else {
+                    // その他のHTTPエラー
+                    const message = errorData.detail || response.statusText;
+                    toast.error(`エラー (${response.status}): ${message}`);
+                    throw new Error(`HTTP ${response.status}: ${message}`);
+                }
             }
 
             const responseData = await response.json();
@@ -259,7 +287,27 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
             onSuccess();
         } catch (error: any) {
             console.error('Error creating report:', error);
-            toast.error(`作成に失敗しました: ${error.message}`);
+
+            // ネットワークエラーのチェック
+            if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+                toast.error('ネットワーク接続を確認してください', {
+                    duration: 5000,
+                    icon: '🌐'
+                });
+                return;
+            }
+
+            // 既にtoast.errorで表示済みのエラーは再表示しない
+            if (error.message?.includes('Validation error') ||
+                error.message?.includes('Conflict error') ||
+                error.message?.includes('Server error') ||
+                error.message?.includes('HTTP')) {
+                // 既に適切なエラーメッセージが表示されているので何もしない
+                return;
+            }
+
+            // その他の予期しないエラー
+            toast.error(`予期しないエラーが発生しました: ${error.message}`);
         } finally {
             setSubmitting(false);
         }
