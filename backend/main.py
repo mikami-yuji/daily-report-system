@@ -1075,14 +1075,13 @@ def update_report_approval(management_number: int, approval: ApprovalInput, back
             wb.close()
             raise HTTPException(status_code=404, detail=f"Report {management_number} not found")
         
-        # Update only provided fields
-        # Column mapping: 24=上長, 25=山澄常務, 26=岡本常務, 27=中野次長, 28=既読チェック
+        # Column mapping: 24=上長, 25=山澄常務, 26=岡本常務, 27=中野次長, 29=既読チェック(AC列)
         column_mapping = {
             '上長': 24,
             '山澄常務': 25,
             '岡本常務': 26,
             '中野次長': 27,
-            '既読チェック': 28
+            '既読チェック': 29  # AC列
         }
         
         if approval.上長 is not None:
