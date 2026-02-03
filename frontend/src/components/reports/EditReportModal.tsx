@@ -92,6 +92,14 @@ export default function EditReportModal({ report, onClose, onSuccess, selectedFi
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // 管理番号の検証
+        if (!report.管理番号) {
+            toast.error('管理番号が無効です。日報を再読み込みしてください。');
+            setSubmitting(false);
+            return;
+        }
+
         setSubmitting(true);
 
         const { 管理番号, ...rest } = report;
