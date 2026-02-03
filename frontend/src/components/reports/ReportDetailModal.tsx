@@ -31,13 +31,14 @@ function InfoRow({ label, value }: { label: string; value: any }) {
 // It uses <div className="text-base text-sf-text whitespace-pre-wrap ..."> which is similar logic but inline.
 // I'll keep InfoRow as it IS used.
 
+// Excelの「済」または「ü」をUIでは「✓」として表示
+const convertToDisplay = (value: string | undefined): string => {
+    if (value === '済' || value === 'ü') return '✓';
+    return value || '';
+};
+
 export default function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, onEdit, onUpdate }: ReportDetailModalProps) {
     const { selectedFile } = useFile();
-    // Excelの「済」または「ü」をUIでは「✓」として表示
-    const convertToDisplay = (value: string | undefined): string => {
-        if (value === '済' || value === 'ü') return '✓';
-        return value || '';
-    };
     const [approvals, setApprovals] = useState({
         上長: convertToDisplay(report.上長),
         山澄常務: convertToDisplay(report.山澄常務),
@@ -53,6 +54,21 @@ export default function ReportDetailModal({ report, onClose, onNext, onPrev, has
     const [processingApproval, setProcessingApproval] = useState<string | null>(null); // 処理中の承認フィールド
     const [processingComment, setProcessingComment] = useState<string | null>(null); // 処理中のコメントフィールド
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // レポート変更時にステートを更新
+    useEffect(() => {
+        setApprovals({
+            上長: convertToDisplay(report.上長),
+            山澄常務: convertToDisplay(report.山澄常務),
+            岡本常務: convertToDisplay(report.岡本常務),
+            中野次長: convertToDisplay(report.中野次長),
+            既読チェック: convertToDisplay(report.既読チェック)
+        });
+        setComments({
+            上長コメント: report.上長コメント || report.コメント || '',
+            コメント返信欄: report.コメント返信欄 || ''
+        });
+    }, [report]);
 
     // キーボードイベントのハンドリング
     useEffect(() => {
