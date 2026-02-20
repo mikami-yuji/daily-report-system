@@ -44,6 +44,8 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
     const [designs, setDesigns] = useState<Design[]>([]);
     const [startOutTime, setStartOutTime] = useState('');
     const [endOutTime, setEndOutTime] = useState('');
+    // 得意先リストからエリア一覧を動的に取得
+    const [areaOptions, setAreaOptions] = useState<string[]>([]);
 
 
 
@@ -61,10 +63,15 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
         getCustomers(selectedFile).then(data => {
             setCustomers(data);
             cacheCustomers(data); // Cache successful response
+            // エリア一覧を抽出（重複除去・ソート）
+            const areas = [...new Set(data.map(c => c.エリア).filter(Boolean))].sort();
+            setAreaOptions(areas);
         }).catch(err => {
             console.error('Failed to fetch customers:', err);
             if (cachedCustomers.length > 0) {
                 setCustomers(cachedCustomers);
+                const areas = [...new Set(cachedCustomers.map(c => c.エリア).filter(Boolean))].sort();
+                setAreaOptions(areas);
                 toast('キャッシュされた得意先リストを使用します', { icon: '📡', id: 'cached-customers' });
             }
         });
@@ -470,6 +477,28 @@ export default function NewReportModal({ onClose, onSuccess, selectedFile }: New
                                             </li>
                                         ))}
                                     </ul>
+                                )}
+                            </div>
+                        )}
+
+                        {/* エリア選択ドロップダウン */}
+                        {!isMinimalUI && (
+                            <div>
+                                <label className="block text-sm font-medium text-sf-text mb-1">エリア</label>
+                                <select
+                                    name="エリア"
+                                    value={formData.エリア}
+                                    onChange={handleChange}
+                                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue ${!formData.エリア ? 'border-amber-300 bg-amber-50' : 'border-sf-border'
+                                        }`}
+                                >
+                                    <option value="">エリアを選択</option>
+                                    {areaOptions.map(area => (
+                                        <option key={area} value={area}>{area}</option>
+                                    ))}
+                                </select>
+                                {!formData.エリア && (
+                                    <p className="mt-1 text-xs text-amber-600">⚠ エリアが未選択です</p>
                                 )}
                             </div>
                         )}
