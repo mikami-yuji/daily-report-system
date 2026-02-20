@@ -387,7 +387,6 @@ export default function AnalyticsPage() {
                                     </thead>
                                     <tbody>
                                         {analytics.contactByAreaMonth.areas
-                                            .filter(a => a.area !== '未設定')
                                             .map((areaData, idx) => (
                                                 <tr key={idx} className="border-b hover:bg-gray-50">
                                                     <td className="px-4 py-2 font-medium text-gray-900 sticky left-0 bg-white whitespace-nowrap">
