@@ -335,6 +335,13 @@ def get_customers(filename: str = DEFAULT_EXCEL_FILE):
         
         # Clean up column names
         df.columns = [str(col).replace('\n', '').strip() for col in df.columns]
+
+        # Force map Column F (index 5) to 'エリア'
+        # Excel is 1-indexed, so Column F is the 6th column, which is index 5 in 0-indexed list
+        if len(df.columns) > 5:
+            new_columns = list(df.columns)
+            new_columns[5] = 'エリア'
+            df.columns = new_columns
         
         # Rename specific columns
         df = df.rename(columns={
@@ -373,6 +380,39 @@ def get_customers(filename: str = DEFAULT_EXCEL_FILE):
         return cleaned_records
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/areas")
+def get_areas(filename: str = DEFAULT_EXCEL_FILE):
+    """得意先_Listと営業日報の両方からユニークなエリア一覧を取得"""
+    try:
+        areas = set()
+
+        # 得意先_Listからエリアを取得
+        try:
+            df_customers = get_cached_dataframe(filename, '得意先_List')
+            df_customers.columns = [str(col).replace('\n', '').strip() for col in df_customers.columns]
+            if 'エリア' in df_customers.columns:
+                customer_areas = df_customers['エリア'].dropna().astype(str).str.strip()
+                areas.update(a for a in customer_areas if a and a != 'nan')
+        except Exception as e:
+            logging.warning(f"Failed to read areas from 得意先_List: {e}")
+
+        # 営業日報からエリアを取得
+        try:
+            df_reports = get_cached_dataframe(filename, '営業日報')
+            df_reports.columns = [str(col).replace('\n', '').strip() for col in df_reports.columns]
+            if 'エリア' in df_reports.columns:
+                report_areas = df_reports['エリア'].dropna().astype(str).str.strip()
+                areas.update(a for a in report_areas if a and a != 'nan')
+        except Exception as e:
+            logging.warning(f"Failed to read areas from 営業日報: {e}")
+
+        return sorted(areas)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 @app.get("/priority-customers")
