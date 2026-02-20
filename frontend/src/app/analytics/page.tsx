@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFile } from '@/context/FileContext';
 import { useReports } from '@/hooks/useQueryHooks';
 import { aggregateAnalytics, getDateRange, AnalyticsData, aggregatePriorityMatrix, PriorityMatrixData } from '@/lib/analytics';
@@ -340,6 +340,153 @@ export default function AnalyticsPage() {
                                         <span className="text-sm font-bold text-sf-light-blue">{item.count}件</span>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 月別×エリア別 電話・メール商談集計テーブル */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">月別×エリア別 商談集計</h2>
+                        <p className="text-sm text-gray-500 mb-4">過去6ヶ月間の電話商談・メール商談件数をエリア別に集計</p>
+                        <div className="overflow-x-auto">
+                            {analytics.contactByAreaMonth.areas.length > 0 ? (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50">
+                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-50 min-w-[120px]">
+                                                エリア
+                                            </th>
+                                            {analytics.contactByAreaMonth.months.map((month, idx) => (
+                                                <th key={idx} colSpan={2} className="px-1 py-2 text-center font-semibold text-gray-700 border-l border-gray-200">
+                                                    {month}
+                                                </th>
+                                            ))}
+                                            <th colSpan={2} className="px-2 py-2 text-center font-bold text-gray-900 bg-gray-100 border-l border-gray-300">
+                                                合計
+                                            </th>
+                                        </tr>
+                                        <tr className="bg-gray-50 border-b">
+                                            <th className="sticky left-0 bg-gray-50"></th>
+                                            {analytics.contactByAreaMonth.months.map((_, idx) => (
+                                                <React.Fragment key={idx}>
+                                                    <th className={`px-1 py-1 text-center text-xs font-medium text-orange-600 ${idx === 0 ? 'border-l border-gray-200' : ''}`}>
+                                                        <span className="flex items-center justify-center gap-0.5"><Phone size={10} />電話</span>
+                                                    </th>
+                                                    <th className="px-1 py-1 text-center text-xs font-medium text-green-600 border-l border-gray-100">
+                                                        <span className="flex items-center justify-center gap-0.5"><Mail size={10} />メール</span>
+                                                    </th>
+                                                </React.Fragment>
+                                            ))}
+                                            <th className="px-1 py-1 text-center text-xs font-bold text-orange-700 bg-gray-100 border-l border-gray-300">
+                                                <span className="flex items-center justify-center gap-0.5"><Phone size={10} />電話</span>
+                                            </th>
+                                            <th className="px-1 py-1 text-center text-xs font-bold text-green-700 bg-gray-100 border-l border-gray-100">
+                                                <span className="flex items-center justify-center gap-0.5"><Mail size={10} />メール</span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {analytics.contactByAreaMonth.areas
+                                            .filter(a => a.area !== '未設定')
+                                            .map((areaData, idx) => (
+                                                <tr key={idx} className="border-b hover:bg-gray-50">
+                                                    <td className="px-4 py-2 font-medium text-gray-900 sticky left-0 bg-white whitespace-nowrap">
+                                                        {areaData.area}
+                                                    </td>
+                                                    {analytics.contactByAreaMonth.monthKeys.map((mk, mi) => {
+                                                        const phoneVal = areaData.phone.get(mk) || 0;
+                                                        const emailVal = areaData.email.get(mk) || 0;
+                                                        return (
+                                                            <React.Fragment key={mi}>
+                                                                <td className={`px-1 py-2 text-center border-l ${mi === 0 ? 'border-gray-200' : 'border-gray-100'}`}>
+                                                                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-bold ${phoneVal === 0 ? 'text-gray-300' :
+                                                                        phoneVal <= 2 ? 'bg-orange-100 text-orange-700' :
+                                                                            phoneVal <= 5 ? 'bg-orange-200 text-orange-800' :
+                                                                                'bg-orange-400 text-white'
+                                                                        }`}>
+                                                                        {phoneVal}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-1 py-2 text-center border-l border-gray-100">
+                                                                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-bold ${emailVal === 0 ? 'text-gray-300' :
+                                                                        emailVal <= 2 ? 'bg-green-100 text-green-700' :
+                                                                            emailVal <= 5 ? 'bg-green-200 text-green-800' :
+                                                                                'bg-green-400 text-white'
+                                                                        }`}>
+                                                                        {emailVal}
+                                                                    </span>
+                                                                </td>
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
+                                                    <td className="px-1 py-2 text-center bg-gray-50 border-l border-gray-300">
+                                                        <span className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold ${areaData.phoneTotal > 0 ? 'bg-orange-500 text-white' : 'text-gray-300'
+                                                            }`}>
+                                                            {areaData.phoneTotal}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-1 py-2 text-center bg-gray-50 border-l border-gray-100">
+                                                        <span className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold ${areaData.emailTotal > 0 ? 'bg-green-500 text-white' : 'text-gray-300'
+                                                            }`}>
+                                                            {areaData.emailTotal}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        {/* 合計行 */}
+                                        <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                                            <td className="px-4 py-2 text-gray-900 sticky left-0 bg-gray-100">合計</td>
+                                            {analytics.contactByAreaMonth.monthKeys.map((mk, mi) => (
+                                                <React.Fragment key={mi}>
+                                                    <td className={`px-1 py-2 text-center border-l ${mi === 0 ? 'border-gray-200' : 'border-gray-100'}`}>
+                                                        <span className="text-orange-700 text-sm font-bold">
+                                                            {analytics.contactByAreaMonth.monthTotals.phone.get(mk) || 0}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-1 py-2 text-center border-l border-gray-100">
+                                                        <span className="text-green-700 text-sm font-bold">
+                                                            {analytics.contactByAreaMonth.monthTotals.email.get(mk) || 0}
+                                                        </span>
+                                                    </td>
+                                                </React.Fragment>
+                                            ))}
+                                            <td className="px-1 py-2 text-center bg-orange-50 border-l border-gray-300">
+                                                <span className="text-orange-800 text-sm font-bold">
+                                                    {analytics.contactByAreaMonth.grandTotal.phone}
+                                                </span>
+                                            </td>
+                                            <td className="px-1 py-2 text-center bg-green-50 border-l border-gray-100">
+                                                <span className="text-green-800 text-sm font-bold">
+                                                    {analytics.contactByAreaMonth.grandTotal.email}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    電話商談・メール商談のデータがありません
+                                </div>
+                            )}
+                        </div>
+                        {/* 凡例 */}
+                        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-gray-500 border-t pt-4">
+                            <span>凡例:</span>
+                            <div className="flex items-center gap-1">
+                                <Phone size={12} className="text-orange-500" /> 電話商談
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Mail size={12} className="text-green-500" /> メール商談
+                            </div>
+                            <span className="mx-2">|</span>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-5 h-5 rounded bg-orange-100"></span>1-2
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-5 h-5 rounded bg-orange-200"></span>3-5
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="inline-block w-5 h-5 rounded bg-orange-400"></span>6+
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,23 @@
 import { Report } from './api';
 
+// 月別×エリア別 商談集計データの型
+export type ContactByAreaMonthData = {
+    months: string[];           // 月ラベル（「2月」「1月」...）
+    monthKeys: string[];        // 月キー（「2026-02」「2026-01」...）
+    areas: {
+        area: string;
+        phone: Map<string, number>;  // monthKey → 件数
+        email: Map<string, number>;
+        phoneTotal: number;
+        emailTotal: number;
+    }[];
+    monthTotals: {
+        phone: Map<string, number>;
+        email: Map<string, number>;
+    };
+    grandTotal: { phone: number; email: number };
+};
+
 export interface AnalyticsData {
     kpis: {
         totalVisits: number;
@@ -43,6 +61,7 @@ export interface AnalyticsData {
         status: string;
         count: number;
     }[];
+    contactByAreaMonth: ContactByAreaMonthData;
     priority: {
         totalCustomers: number;
         totalVisits: number;
@@ -320,6 +339,84 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         .map(([status, count]) => ({ status, count }))
         .sort((a, b) => b.count - a.count);
 
+    // 月別×エリア別 電話・メール商談クロス集計（全レポート対象、期間フィルタなし）
+    const now = new Date();
+    const contactMonths: string[] = [];
+    const contactMonthKeys: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const m = d.getMonth() + 1;
+        const y = d.getFullYear();
+        contactMonths.push(`${m}月`);
+        contactMonthKeys.push(`${y}-${String(m).padStart(2, '0')}`);
+    }
+
+    // エリア別集計マップ
+    const contactAreaMap = new Map<string, {
+        phone: Map<string, number>;
+        email: Map<string, number>;
+    }>();
+
+    // 月別合計
+    const contactMonthTotals = {
+        phone: new Map<string, number>(contactMonthKeys.map(k => [k, 0])),
+        email: new Map<string, number>(contactMonthKeys.map(k => [k, 0])),
+    };
+
+    // 全レポートを走査（期間フィルタなし）
+    reports.forEach(report => {
+        const action = String(report.行動内容 || '');
+        const isPhone = action.includes('電話');
+        const isEmail = action.includes('メール');
+        if (!isPhone && !isEmail) return;
+
+        const area = report.エリア || '未設定';
+        const reportDate = parseDate(report.日付);
+        if (!reportDate) return;
+
+        const monthKey = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`;
+        // 対象月の範囲外はスキップ
+        if (!contactMonthKeys.includes(monthKey)) return;
+
+        if (!contactAreaMap.has(area)) {
+            contactAreaMap.set(area, {
+                phone: new Map(contactMonthKeys.map(k => [k, 0])),
+                email: new Map(contactMonthKeys.map(k => [k, 0])),
+            });
+        }
+        const areaData = contactAreaMap.get(area)!;
+
+        if (isPhone) {
+            areaData.phone.set(monthKey, (areaData.phone.get(monthKey) || 0) + 1);
+            contactMonthTotals.phone.set(monthKey, (contactMonthTotals.phone.get(monthKey) || 0) + 1);
+        }
+        if (isEmail) {
+            areaData.email.set(monthKey, (areaData.email.get(monthKey) || 0) + 1);
+            contactMonthTotals.email.set(monthKey, (contactMonthTotals.email.get(monthKey) || 0) + 1);
+        }
+    });
+
+    const contactAreas = Array.from(contactAreaMap.entries())
+        .map(([area, data]) => ({
+            area,
+            phone: data.phone,
+            email: data.email,
+            phoneTotal: contactMonthKeys.reduce((sum, k) => sum + (data.phone.get(k) || 0), 0),
+            emailTotal: contactMonthKeys.reduce((sum, k) => sum + (data.email.get(k) || 0), 0),
+        }))
+        .sort((a, b) => (b.phoneTotal + b.emailTotal) - (a.phoneTotal + a.emailTotal));
+
+    const contactByAreaMonth: ContactByAreaMonthData = {
+        months: contactMonths,
+        monthKeys: contactMonthKeys,
+        areas: contactAreas,
+        monthTotals: contactMonthTotals,
+        grandTotal: {
+            phone: contactAreas.reduce((sum, a) => sum + a.phoneTotal, 0),
+            email: contactAreas.reduce((sum, a) => sum + a.emailTotal, 0),
+        },
+    };
+
     // Priority Customer Analysis - 得意先CDと直送先CDでユニークにカウント
     const priorityReports = filteredReports.filter(r => r.重点顧客 && r.重点顧客 !== '-' && r.重点顧客 !== '');
 
@@ -447,6 +544,7 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         byAction,
         byInterviewer,
         designProgress,
+        contactByAreaMonth,
         priority
     };
 }
