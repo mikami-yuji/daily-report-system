@@ -336,9 +336,12 @@ def get_customers(filename: str = DEFAULT_EXCEL_FILE):
         # Clean up column names
         df.columns = [str(col).replace('\n', '').strip() for col in df.columns]
 
-        # Force map Column F (index 5) to 'エリア'
-        # Excel is 1-indexed, so Column F is the 6th column, which is index 5 in 0-indexed list
-        if len(df.columns) > 5:
+        # 都道府県カラムをエリアにマッピング
+        # まずカラム名で「都道府県」を検索し、見つかればリネーム
+        # 見つからない場合はカラムF（インデックス5）を強制マッピング
+        if '都道府県' in df.columns and 'エリア' not in df.columns:
+            df = df.rename(columns={'都道府県': 'エリア'})
+        elif 'エリア' not in df.columns and len(df.columns) > 5:
             new_columns = list(df.columns)
             new_columns[5] = 'エリア'
             df.columns = new_columns
@@ -392,6 +395,9 @@ def get_areas(filename: str = DEFAULT_EXCEL_FILE):
         try:
             df_customers = get_cached_dataframe(filename, '得意先_List')
             df_customers.columns = [str(col).replace('\n', '').strip() for col in df_customers.columns]
+            # 都道府県カラムをエリアにリネーム
+            if '都道府県' in df_customers.columns and 'エリア' not in df_customers.columns:
+                df_customers = df_customers.rename(columns={'都道府県': 'エリア'})
             if 'エリア' in df_customers.columns:
                 customer_areas = df_customers['エリア'].dropna().astype(str).str.strip()
                 areas.update(a for a in customer_areas if a and a != 'nan')
