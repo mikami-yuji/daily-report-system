@@ -1,5 +1,23 @@
 import { Report } from './api';
 
+// 月別×エリア別 商談集計データの型
+export type ContactByAreaMonthData = {
+    months: string[];           // 月ラベル（「2月」「1月」...）
+    monthKeys: string[];        // 月キー（「2026-02」「2026-01」...）
+    areas: {
+        area: string;
+        phone: Map<string, number>;  // monthKey → 件数
+        email: Map<string, number>;
+        phoneTotal: number;
+        emailTotal: number;
+    }[];
+    monthTotals: {
+        phone: Map<string, number>;
+        email: Map<string, number>;
+    };
+    grandTotal: { phone: number; email: number };
+};
+
 export interface AnalyticsData {
     kpis: {
         totalVisits: number;
@@ -43,6 +61,7 @@ export interface AnalyticsData {
         status: string;
         count: number;
     }[];
+    contactByAreaMonth: ContactByAreaMonthData;
     priority: {
         totalCustomers: number;
         totalVisits: number;
@@ -128,29 +147,43 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         return action.includes('訪問');
     }).length;
 
-    // Count total design requests (records with デザイン依頼No.)
-    const totalProposals = filteredReports.filter(r => r['デザイン依頼No.'] && String(r['デザイン依頼No.']).trim() !== '').length;
+    // Count total unique design requests using システム確認用デザインNo. (same as design search)
+    const uniqueDesignNos = new Set(
+        filteredReports
+            .filter(r => r['システム確認用デザインNo.'] && String(r['システム確認用デザインNo.']).trim() !== '')
+            .map(r => String(r['システム確認用デザインNo.']).trim())
+    );
+    const totalProposals = uniqueDesignNos.size;
 
-    // Active projects: デザイン進捗状況 that are not 出稿 or 不採用
-    const activeProjects = filteredReports.filter(r => {
-        if (!r.デザイン進捗状況) return false;
-        const status = String(r.デザイン進捗状況);
-        return !['出稿', '不採用（コンペ負け）', '不採用（企画倒れ）'].some(s => status.includes(s));
-    }).length;
+    // Completed designs: unique designs with 出稿 status (count by システム確認用デザインNo.)
+    const completedDesignNos = new Set(
+        filteredReports
+            .filter(r => {
+                if (!r['システム確認用デザインNo.']) return false;
+                if (!r.デザイン進捗状況) return false;
+                return String(r.デザイン進捗状況).includes('出稿');
+            })
+            .map(r => String(r['システム確認用デザインNo.']).trim())
+    );
+    const completedDesigns = completedDesignNos.size;
 
-    // Completed designs: 出稿 status means design is finalized and published
-    const completedDesigns = filteredReports.filter(r => {
-        if (!r.デザイン進捗状況) return false;
-        const status = String(r.デザイン進捗状況);
-        return status.includes('出稿');
-    }).length;
+    // Rejected designs: unique designs with 不採用 status (count by システム確認用デザインNo.)
+    const rejectedDesignNos = new Set(
+        filteredReports
+            .filter(r => {
+                if (!r['システム確認用デザインNo.']) return false;
+                if (!r.デザイン進捗状況) return false;
+                return String(r.デザイン進捗状況).includes('不採用');
+            })
+            .map(r => String(r['システム確認用デザインNo.']).trim())
+    );
+    const rejectedDesigns = rejectedDesignNos.size;
 
-    // Rejected designs
-    const rejectedDesigns = filteredReports.filter(r => {
-        if (!r.デザイン進捗状況) return false;
-        const status = String(r.デザイン進捗状況);
-        return status.includes('不採用');
-    }).length;
+    // Active projects: all unique designs minus completed and rejected
+    const activeDesignNos = new Set(uniqueDesignNos);
+    completedDesignNos.forEach(no => activeDesignNos.delete(no));
+    rejectedDesignNos.forEach(no => activeDesignNos.delete(no));
+    const activeProjects = activeDesignNos.size;
 
     // Acceptance Rate
     const acceptanceRate = totalProposals > 0
@@ -168,8 +201,8 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         return action.includes('メール');
     }).length;
 
-    // Trends by date
-    const trendMap = new Map<string, { visits: number; proposals: number; completed: number; rejected: number; phone: number; email: number }>();
+    // Trends by date (using unique design numbers for proposals)
+    const trendMap = new Map<string, { visits: number; proposalNos: Set<string>; completed: number; rejected: number; phone: number; email: number }>();
     filteredReports.forEach(report => {
         // Normalize date string for grouping
         const reportDate = parseDate(report.日付);
@@ -180,9 +213,10 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
 
         const action = String(report.行動内容 || '');
         const status = String(report.デザイン進捗状況 || '');
+        const designNo = report['システム確認用デザインNo.'] ? String(report['システム確認用デザインNo.']).trim() : '';
 
         if (!trendMap.has(dateKey)) {
-            trendMap.set(dateKey, { visits: 0, proposals: 0, completed: 0, rejected: 0, phone: 0, email: 0 });
+            trendMap.set(dateKey, { visits: 0, proposalNos: new Set(), completed: 0, rejected: 0, phone: 0, email: 0 });
         }
         const trend = trendMap.get(dateKey)!;
 
@@ -191,8 +225,9 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
             trend.visits++;
         }
 
-        if (report.デザイン提案有無 === 'あり') {
-            trend.proposals++;
+        // Count unique design numbers
+        if (designNo) {
+            trend.proposalNos.add(designNo);
         }
         if (status.includes('出稿')) {
             trend.completed++;
@@ -208,7 +243,7 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         }
     });
     const trends = Array.from(trendMap.entries())
-        .map(([date, data]) => ({ date, ...data }))
+        .map(([date, data]) => ({ date, visits: data.visits, proposals: data.proposalNos.size, completed: data.completed, rejected: data.rejected, phone: data.phone, email: data.email }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
     // By Area
@@ -274,32 +309,160 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         }))
         .sort((a, b) => b.visits - a.visits);
 
-    // Design Progress
-    const progressMap = new Map<string, number>();
+    // Design Progress: count by unique システム確認用デザインNo. using latest date record
+    // First, get the latest record for each unique design number
+    const latestDesignRecords = new Map<string, Report>();
     filteredReports
-        .filter(r => r.デザイン進捗状況)
+        .filter(r => r['システム確認用デザインNo.'] && r.デザイン進捗状況)
         .forEach(report => {
-            const status = String(report.デザイン進捗状況!);
-            progressMap.set(status, (progressMap.get(status) || 0) + 1);
+            const designNo = String(report['システム確認用デザインNo.']).trim();
+            const existing = latestDesignRecords.get(designNo);
+            if (!existing) {
+                latestDesignRecords.set(designNo, report);
+            } else {
+                // Compare dates and keep the latest
+                const existingDate = String(existing.日付 || '');
+                const currentDate = String(report.日付 || '');
+                if (currentDate > existingDate) {
+                    latestDesignRecords.set(designNo, report);
+                }
+            }
         });
+
+    // Now count by progress status using only the latest records
+    const progressMap = new Map<string, number>();
+    latestDesignRecords.forEach(report => {
+        const status = String(report.デザイン進捗状況!);
+        progressMap.set(status, (progressMap.get(status) || 0) + 1);
+    });
     const designProgress = Array.from(progressMap.entries())
         .map(([status, count]) => ({ status, count }))
         .sort((a, b) => b.count - a.count);
 
-    // Priority Customer Analysis
+    // 月別×エリア別 電話・メール商談クロス集計（全レポート対象、期間フィルタなし）
+    const now = new Date();
+    const contactMonths: string[] = [];
+    const contactMonthKeys: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const m = d.getMonth() + 1;
+        const y = d.getFullYear();
+        contactMonths.push(`${m}月`);
+        contactMonthKeys.push(`${y}-${String(m).padStart(2, '0')}`);
+    }
+
+    // エリア別集計マップ
+    const contactAreaMap = new Map<string, {
+        phone: Map<string, number>;
+        email: Map<string, number>;
+    }>();
+
+    // 月別合計
+    const contactMonthTotals = {
+        phone: new Map<string, number>(contactMonthKeys.map(k => [k, 0])),
+        email: new Map<string, number>(contactMonthKeys.map(k => [k, 0])),
+    };
+
+    // 全レポートを走査（期間フィルタなし）
+    reports.forEach(report => {
+        const action = String(report.行動内容 || '');
+        const isPhone = action.includes('電話');
+        const isEmail = action.includes('メール');
+        if (!isPhone && !isEmail) return;
+
+        const area = report.エリア || '未設定';
+        const reportDate = parseDate(report.日付);
+        if (!reportDate) return;
+
+        const monthKey = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`;
+        // 対象月の範囲外はスキップ
+        if (!contactMonthKeys.includes(monthKey)) return;
+
+        if (!contactAreaMap.has(area)) {
+            contactAreaMap.set(area, {
+                phone: new Map(contactMonthKeys.map(k => [k, 0])),
+                email: new Map(contactMonthKeys.map(k => [k, 0])),
+            });
+        }
+        const areaData = contactAreaMap.get(area)!;
+
+        if (isPhone) {
+            areaData.phone.set(monthKey, (areaData.phone.get(monthKey) || 0) + 1);
+            contactMonthTotals.phone.set(monthKey, (contactMonthTotals.phone.get(monthKey) || 0) + 1);
+        }
+        if (isEmail) {
+            areaData.email.set(monthKey, (areaData.email.get(monthKey) || 0) + 1);
+            contactMonthTotals.email.set(monthKey, (contactMonthTotals.email.get(monthKey) || 0) + 1);
+        }
+    });
+
+    const contactAreas = Array.from(contactAreaMap.entries())
+        .map(([area, data]) => ({
+            area,
+            phone: data.phone,
+            email: data.email,
+            phoneTotal: contactMonthKeys.reduce((sum, k) => sum + (data.phone.get(k) || 0), 0),
+            emailTotal: contactMonthKeys.reduce((sum, k) => sum + (data.email.get(k) || 0), 0),
+        }))
+        .sort((a, b) => (b.phoneTotal + b.emailTotal) - (a.phoneTotal + a.emailTotal));
+
+    const contactByAreaMonth: ContactByAreaMonthData = {
+        months: contactMonths,
+        monthKeys: contactMonthKeys,
+        areas: contactAreas,
+        monthTotals: contactMonthTotals,
+        grandTotal: {
+            phone: contactAreas.reduce((sum, a) => sum + a.phoneTotal, 0),
+            email: contactAreas.reduce((sum, a) => sum + a.emailTotal, 0),
+        },
+    };
+
+    // Priority Customer Analysis - 得意先CDと直送先CDでユニークにカウント
     const priorityReports = filteredReports.filter(r => r.重点顧客 && r.重点顧客 !== '-' && r.重点顧客 !== '');
-    const priorityCustomerMap = new Map<string, { visits: number; calls: number; proposals: number; completed: number; rejected: number; lastVisit: string | null }>();
+
+    // Use customer code + direct delivery code as unique key
+    const priorityCustomerMap = new Map<string, {
+        code: string;
+        name: string;
+        visits: number;
+        calls: number;
+        designNos: Set<string>;
+        completed: number;
+        rejected: number;
+        lastVisit: string | null;
+        isDirectDelivery: boolean;
+    }>();
 
     priorityReports.forEach(report => {
+        const customerCode = String(report.得意先CD || '');
         const customerName = report.訪問先名 || '不明';
+        const ddCode = report.直送先CD ? String(report.直送先CD) : '';
+        const ddName = report.直送先名 ? String(report.直送先名) : '';
+
+        // 直送先がある場合は直送先をキーに、なければ得意先をキーにする
+        const uniqueKey = ddCode ? `${customerCode}-${ddCode}` : customerCode;
+        const displayName = ddCode ? (ddName || customerName) : customerName;
+        const isDD = !!ddCode;
+
         const action = String(report.行動内容 || '');
         const status = String(report.デザイン進捗状況 || '');
         const date = report.日付 || null;
+        const designNo = report['システム確認用デザインNo.'] ? String(report['システム確認用デザインNo.']).trim() : '';
 
-        if (!priorityCustomerMap.has(customerName)) {
-            priorityCustomerMap.set(customerName, { visits: 0, calls: 0, proposals: 0, completed: 0, rejected: 0, lastVisit: null });
+        if (!priorityCustomerMap.has(uniqueKey)) {
+            priorityCustomerMap.set(uniqueKey, {
+                code: uniqueKey,
+                name: displayName,
+                visits: 0,
+                calls: 0,
+                designNos: new Set(),
+                completed: 0,
+                rejected: 0,
+                lastVisit: null,
+                isDirectDelivery: isDD
+            });
         }
-        const data = priorityCustomerMap.get(customerName)!;
+        const data = priorityCustomerMap.get(uniqueKey)!;
 
         if (action.includes('訪問')) {
             data.visits++;
@@ -312,8 +475,9 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         if (action.includes('電話')) {
             data.calls++;
         }
-        if (report.デザイン提案有無 === 'あり') {
-            data.proposals++;
+        // Count unique design numbers per customer
+        if (designNo) {
+            data.designNos.add(designNo);
         }
         if (status.includes('出稿')) {
             data.completed++;
@@ -324,12 +488,26 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
     });
 
     const priorityByCustomer = Array.from(priorityCustomerMap.entries())
-        .map(([name, data]) => ({ name, ...data }))
+        .map(([key, data]) => ({
+            name: data.isDirectDelivery ? `【直送】${data.name}` : data.name,
+            visits: data.visits,
+            calls: data.calls,
+            proposals: data.designNos.size,
+            completed: data.completed,
+            rejected: data.rejected,
+            lastVisit: data.lastVisit
+        }))
         .sort((a, b) => b.visits - a.visits);
 
     const totalPriorityVisits = priorityByCustomer.reduce((sum, c) => sum + c.visits, 0);
     const totalPriorityCalls = priorityByCustomer.reduce((sum, c) => sum + c.calls, 0);
-    const totalPriorityProposals = priorityByCustomer.reduce((sum, c) => sum + c.proposals, 0);
+    // Count unique design requests for priority customers (same logic as design search)
+    const uniquePriorityDesignNos = new Set(
+        priorityReports
+            .filter(r => r['システム確認用デザインNo.'] && String(r['システム確認用デザインNo.']).trim() !== '')
+            .map(r => String(r['システム確認用デザインNo.']).trim())
+    );
+    const totalPriorityProposals = uniquePriorityDesignNos.size;
     const totalPriorityCompleted = priorityByCustomer.reduce((sum, c) => sum + c.completed, 0);
     const totalPriorityRejected = priorityByCustomer.reduce((sum, c) => sum + c.rejected, 0);
     const priorityAcceptanceRate = totalPriorityProposals > 0
@@ -366,6 +544,7 @@ export function aggregateAnalytics(reports: Report[], startDate?: Date, endDate?
         byAction,
         byInterviewer,
         designProgress,
+        contactByAreaMonth,
         priority
     };
 }
@@ -396,4 +575,221 @@ export function getDateRange(period: 'today' | 'week' | 'month' | 'quarter' | 'y
     }
 
     return { start, end };
+}
+
+// 重点顧客マトリクスデータの型
+export type PriorityMatrixData = {
+    periods: string[];  // 期間ラベル（「1月」「12/2週」など）
+    customers: {
+        code: string;
+        name: string;
+        values: number[];  // 各期間の値
+        total: number;
+        lastActivity: string | null;
+    }[];
+};
+
+// 週番号を取得（ISO週番号）
+function getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+// 週の開始日を取得（月曜日）
+function getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+// 重点顧客の週別・月別マトリクス集計
+export function aggregatePriorityMatrix(
+    reports: Report[],
+    priorityCustomers: { 得意先CD: string; 得意先名: string }[],
+    mode: 'weekly' | 'monthly',
+    metric: 'visits' | 'calls' | 'total'
+): PriorityMatrixData {
+    const now = new Date();
+    const periods: string[] = [];
+    const periodKeys: string[] = [];
+
+    // 期間ラベルとキーを生成
+    if (mode === 'monthly') {
+        // 過去6ヶ月
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            periods.push(`${month}月`);
+            periodKeys.push(`${year}-${String(month).padStart(2, '0')}`);
+        }
+    } else {
+        // 過去8週間
+        for (let i = 7; i >= 0; i--) {
+            const weekStart = getWeekStart(new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000));
+            const month = weekStart.getMonth() + 1;
+            const day = weekStart.getDate();
+            periods.push(`${month}/${day}週`);
+            periodKeys.push(`${weekStart.getFullYear()}-W${String(getWeekNumber(weekStart)).padStart(2, '0')}`);
+        }
+    }
+
+    // 顧客ごとのデータを初期化
+    const customerDataMap = new Map<string, {
+        code: string;
+        name: string;
+        values: Map<string, number>;
+        lastActivity: string | null;
+    }>();
+
+    // 重点顧客マスタがある場合はそれを使用、なければ日報から抽出
+    let effectivePriorityCustomers = priorityCustomers;
+
+    if (priorityCustomers.length === 0) {
+        // 日報データから重点顧客を抽出（重点顧客フラグがあるもの）
+        const priorityFromReports = new Map<string, string>();
+        reports.forEach(report => {
+            if (report.重点顧客 && report.重点顧客 !== '-' && report.重点顧客 !== '') {
+                // 得意先CDをクリーンアップ（数値の場合は整数に変換）
+                let code = report.得意先CD;
+                if (typeof code === 'number') {
+                    code = String(Math.floor(code));
+                } else {
+                    code = String(code || '').trim();
+                }
+
+                // 顧客名を取得（訪問先名 > 直送先名 > 得意先CDの順で優先）
+                let name = report.訪問先名 || report.直送先名 || '';
+                if (!name || name === 'nan' || name === 'undefined') {
+                    name = `得意先${code}`;
+                }
+
+                if (code && code !== 'nan' && code !== 'undefined' && !priorityFromReports.has(code)) {
+                    priorityFromReports.set(code, name);
+                }
+            }
+        });
+        effectivePriorityCustomers = Array.from(priorityFromReports.entries()).map(([code, name]) => ({
+            得意先CD: code,
+            得意先名: name
+        }));
+    }
+
+    // 全重点顧客を初期化（活動なしでも0で表示）
+    // 直送先がある場合は「得意先CD-直送先CD」をキーとして使用
+    effectivePriorityCustomers.forEach(c => {
+        const code = String(c.得意先CD).trim();
+        if (!customerDataMap.has(code)) {
+            customerDataMap.set(code, {
+                code,
+                name: c.得意先名,
+                values: new Map(periodKeys.map(k => [k, 0])),
+                lastActivity: null
+            });
+        }
+    });
+
+    // 日報データを集計（直送先がある場合は直送先単位で集計）
+    reports.forEach(report => {
+        const customerCode = String(report.得意先CD || '').trim();
+        if (!customerCode) return;
+
+        // 重点顧客フラグが設定されていない活動は除外
+        const priorityFlag = report.重点顧客;
+        if (!priorityFlag || priorityFlag === '-' || priorityFlag === '') return;
+
+        const directDeliveryCode = report.直送先CD ? String(report.直送先CD).replace(/\.0$/, '').trim() : '';
+        const directDeliveryName = report.直送先名 || '';
+        const customerName = report.訪問先名 || '';
+
+        // 直送先がある場合は直送先でマッチング、なければ得意先でマッチング
+        let matchKey = customerCode;
+        let displayName = customerName;
+
+        if (directDeliveryCode && directDeliveryCode !== 'nan' && directDeliveryCode !== '') {
+            // 直送先がある場合は、得意先と直送先の組み合わせでキーを作成
+            matchKey = `${customerCode}-${directDeliveryCode}`;
+            displayName = directDeliveryName
+                ? `${customerName} / ${directDeliveryName}`
+                : customerName;
+        }
+
+        // 重点顧客マスタに得意先が存在するかチェック（マスタがある場合のみ）
+        if (priorityCustomers.length > 0 && !customerDataMap.has(customerCode)) return;
+
+        const reportDate = parseDate(report.日付);
+        if (!reportDate) return;
+
+        const action = String(report.行動内容 || '');
+        const isVisit = action.includes('訪問');
+        const isCall = action.includes('電話');
+
+        // 指標に応じてカウント
+        let shouldCount = false;
+        if (metric === 'visits' && isVisit) shouldCount = true;
+        if (metric === 'calls' && isCall) shouldCount = true;
+        if (metric === 'total' && (isVisit || isCall)) shouldCount = true;
+
+        if (!shouldCount) return;
+
+        // 期間キーを計算
+        let periodKey: string;
+        if (mode === 'monthly') {
+            periodKey = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}`;
+        } else {
+            const weekStart = getWeekStart(reportDate);
+            periodKey = `${weekStart.getFullYear()}-W${String(getWeekNumber(weekStart)).padStart(2, '0')}`;
+        }
+
+        // 直送先がある場合は新しいエントリを作成（なければ）
+        if (directDeliveryCode && directDeliveryCode !== 'nan' && directDeliveryCode !== '') {
+            if (!customerDataMap.has(matchKey)) {
+                customerDataMap.set(matchKey, {
+                    code: matchKey,
+                    name: displayName,
+                    values: new Map(periodKeys.map(k => [k, 0])),
+                    lastActivity: null
+                });
+            }
+            // 元の得意先エントリは削除しない（両方表示）
+        }
+
+        const customerData = customerDataMap.get(matchKey) || customerDataMap.get(customerCode);
+        if (customerData && customerData.values.has(periodKey)) {
+            customerData.values.set(periodKey, (customerData.values.get(periodKey) || 0) + 1);
+
+            // 最終活動日を更新
+            const dateStr = report.日付;
+            if (dateStr && (!customerData.lastActivity || dateStr > customerData.lastActivity)) {
+                customerData.lastActivity = dateStr;
+            }
+        }
+    });
+
+    // 結果を配列に変換
+    const customers = Array.from(customerDataMap.values()).map(data => ({
+        code: data.code,
+        name: data.name,
+        values: periodKeys.map(k => data.values.get(k) || 0),
+        total: periodKeys.reduce((sum, k) => sum + (data.values.get(k) || 0), 0),
+        lastActivity: data.lastActivity
+    }));
+
+    // 合計の降順でソート（0件の顧客は後ろに）
+    customers.sort((a, b) => {
+        if (a.total === 0 && b.total > 0) return 1;
+        if (b.total === 0 && a.total > 0) return -1;
+        return b.total - a.total;
+    });
+
+    return {
+        periods,
+        customers
+    };
 }

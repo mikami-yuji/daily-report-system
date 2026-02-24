@@ -2,10 +2,10 @@
 echo Starting Daily Report System...
 
 :: Start Backend
-start "Daily Report Backend" cmd /k "cd backend && python main.py"
+start "Daily Report Backend" cmd /k "cd backend && py main.py"
 
 :: Start Frontend
-start "Daily Report Frontend" cmd /k "cd frontend && npm run dev -- --webpack"
+start "Daily Report Frontend" cmd /k "start_frontend.bat"
 
 echo Servers are starting...
 echo Backend will be at http://localhost:8001

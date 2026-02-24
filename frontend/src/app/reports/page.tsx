@@ -1,5 +1,6 @@
 'use client';
 
+<<<<<<< HEAD
 import { useEffect, useMemo, useState } from 'react';
 import { getReports, Report, getCustomers, Customer, updateReport, deleteReport, getInterviewers, getDesigns, Design } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
@@ -19,11 +20,35 @@ const sanitizeReport = (report: any) => {
     }
     return sanitized;
 };
+=======
+import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { Report } from '@/lib/api';
+import { useFile } from '@/context/FileContext';
+import { useReports } from '@/hooks/useQueryHooks';
+import { Plus, Filter, RefreshCw, FileText, LayoutList, Table } from 'lucide-react';
+import toast from 'react-hot-toast';
+import NewReportModal from '@/components/reports/NewReportModal';
+import EditReportModal from '@/components/reports/EditReportModal';
+import ReportDetailModal from '@/components/reports/ReportDetailModal';
+import { cleanText } from '@/lib/reportUtils';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/hooks/useQueryHooks';
+>>>>>>> ad3c281a4869cea727799e74b86176dc12f3469f
 
 export default function ReportsPage() {
+    const router = useRouter();
     const { files, selectedFile, setSelectedFile } = useFile();
+<<<<<<< HEAD
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
+=======
+    const queryClient = useQueryClient();
+
+    // React Queryでデータ取得（自動キャッシュ）
+    const { data: rawReports = [], isLoading, error, refetch } = useReports(selectedFile || undefined);
+
+>>>>>>> ad3c281a4869cea727799e74b86176dc12f3469f
     const [selectedReportIndex, setSelectedReportIndex] = useState<number | null>(null);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [viewMode, setViewMode] = useState<'table' | 'timeline' | 'card'>('table');
@@ -31,6 +56,7 @@ export default function ReportsPage() {
     const [showEditReportModal, setShowEditReportModal] = useState(false);
     const [editingReport, setEditingReport] = useState<Report | null>(null);
 
+<<<<<<< HEAD
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth < 768) {
@@ -45,10 +71,18 @@ export default function ReportsPage() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+=======
+    // ページネーション
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
+
+    // エラー時のtoast表示
+>>>>>>> ad3c281a4869cea727799e74b86176dc12f3469f
     useEffect(() => {
-        if (selectedFile) {
-            fetchData();
+        if (error) {
+            toast.error('日報データの読み込みに失敗しました');
         }
+<<<<<<< HEAD
     }, [selectedFile]);
 
     const fetchData = () => {
@@ -68,20 +102,37 @@ export default function ReportsPage() {
 
     const sortReports = (data: Report[], order: 'asc' | 'desc') => {
         return [...data].sort((a, b) => {
+=======
+    }, [error]);
+
+    // レポートのソートと有効データフィルタリング（useMemoでキャッシュ）
+    const reports = useMemo(() => {
+        // 日付があるレポートのみ
+        const validData = rawReports.filter(report => report.日付 && report.日付.trim() !== '');
+        // ソート
+        return [...validData].sort((a, b) => {
+>>>>>>> ad3c281a4869cea727799e74b86176dc12f3469f
             const dateA = String(a.日付 || '');
             const dateB = String(b.日付 || '');
-            if (order === 'asc') {
+            if (sortOrder === 'asc') {
                 return dateA.localeCompare(dateB);
             } else {
                 return dateB.localeCompare(dateA);
             }
         });
+    }, [rawReports, sortOrder]);
+
+    const totalPages = Math.ceil(reports.length / itemsPerPage);
+    const paginatedReports = reports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    // データ更新時にキャッシュをリフレッシュ
+    const handleRefresh = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports(selectedFile || undefined) });
+        toast.success('データを更新しました');
     };
 
     const toggleSortOrder = () => {
-        const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-        setSortOrder(newOrder);
-        setReports(prev => sortReports(prev, newOrder));
+        setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     };
 
     const handleRowClick = (index: number) => {
@@ -101,7 +152,7 @@ export default function ReportsPage() {
     };
 
     return (
-        <div className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
+        <div className="space-y-4 h-[calc(100vh-8rem)] flex flex-col animate-fadeIn">
             <div className="flex justify-between items-center bg-white p-4 rounded border border-sf-border shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="bg-sf-light-blue p-2 rounded text-white shadow-sm">
@@ -114,18 +165,6 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex gap-2 items-center">
                     {/* File Selector */}
-                    <div className="flex items-center gap-2 border border-sf-border rounded px-3 py-2 bg-white">
-                        <FolderOpen size={16} className="text-sf-text-weak" />
-                        <select
-                            value={selectedFile}
-                            onChange={(e) => setSelectedFile(e.target.value)}
-                            className="text-sm text-sf-text bg-transparent border-none outline-none cursor-pointer"
-                        >
-                            {files.map(file => (
-                                <option key={file.name} value={file.name}>{file.name}</option>
-                            ))}
-                        </select>
-                    </div>
 
                     <div className="flex bg-gray-100 p-1 rounded border border-sf-border">
                         <button
@@ -161,11 +200,11 @@ export default function ReportsPage() {
                             {sortOrder === 'asc' ? '昇順' : '降順'}
                         </span>
                     </button>
-                    <button onClick={fetchData} className="p-2 border border-sf-border rounded hover:bg-gray-50 text-sf-text-weak transition-colors">
+                    <button onClick={handleRefresh} className="p-2 border border-sf-border rounded hover:bg-gray-50 text-sf-text-weak transition-colors">
                         <RefreshCw size={16} />
                     </button>
                     <button
-                        onClick={() => setShowNewReportModal(true)}
+                        onClick={() => router.push('/reports/batch')}
                         className="bg-sf-light-blue text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 shadow-sm flex items-center gap-1 transition-colors"
                     >
                         <Plus size={16} />
@@ -175,7 +214,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="bg-white border border-sf-border shadow-sm flex-1 overflow-auto rounded">
-                {loading ? (
+                {isLoading ? (
                     <div className="p-10 text-center text-sf-text-weak">読み込み中...</div>
                 ) : reports.length === 0 ? (
                     <div className="p-10 text-center text-sf-text-weak">日報が見つかりません</div>
@@ -192,7 +231,7 @@ export default function ReportsPage() {
                 ) : viewMode === 'table' ? (
                     <div className="divide-y divide-sf-border">
 
-                        {reports.map((report, i) => (
+                        {paginatedReports.map((report, i) => (
                             <div
                                 key={i}
                                 className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -211,6 +250,9 @@ export default function ReportsPage() {
                                         <div>
                                             <span className="text-xs text-sf-text-weak">訪問先名</span>
                                             <p className="font-medium text-sf-light-blue">{report.訪問先名}</p>
+                                            {report.直送先名 && (
+                                                <p className="text-xs text-sf-text-weak mt-1">直送: {report.直送先名}</p>
+                                            )}
                                         </div>
                                         <div>
                                             <span className="text-xs text-sf-text-weak">行動内容</span>
@@ -227,7 +269,7 @@ export default function ReportsPage() {
                     </div>
                 ) : (
                     <div className="p-4 space-y-4">
-                        {reports.map((report, i) => (
+                        {paginatedReports.map((report, i) => (
                             <div
                                 key={i}
                                 className="bg-white p-4 rounded border border-sf-border shadow-sm hover:shadow-md transition-shadow cursor-pointer hover:border-sf-light-blue"
@@ -237,7 +279,10 @@ export default function ReportsPage() {
                                     <div className="flex items-center gap-3">
                                         <span className="font-bold text-sf-text">{report.日付}</span>
                                         <span className="text-sm px-2 py-0.5 rounded bg-gray-100 text-sf-text-weak">{report.行動内容}</span>
-                                        <span className="text-sm font-medium text-sf-light-blue">{report.訪問先名}</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-sf-light-blue">{report.訪問先名}</span>
+                                            {report.直送先名 && <span className="text-xs text-sf-text-weak">直送: {report.直送先名}</span>}
+                                        </div>
                                     </div>
                                     <div className="text-sm text-sf-text-weak">
                                         面談者: {report.面談者 || '-'}
@@ -331,8 +376,44 @@ export default function ReportsPage() {
                 )}
             </div>
 
+            {/* フッター + ページネーション */}
             <div className="p-2 bg-white border border-sf-border rounded text-xs text-sf-text-weak flex justify-between items-center">
                 <span>{reports.length} 件 • {selectedFile}</span>
+                {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            ««
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            «
+                        </button>
+                        <span className="px-2 text-sm text-sf-text">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            »
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 rounded border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                        >
+                            »»
+                        </button>
+                    </div>
+                )}
                 <span>並び順: {sortOrder === 'desc' ? '新しい順' : '古い順'}</span>
             </div>
 
@@ -342,7 +423,7 @@ export default function ReportsPage() {
                     onClose={() => setShowNewReportModal(false)}
                     onSuccess={() => {
                         setShowNewReportModal(false);
-                        fetchData();
+                        handleRefresh();
                     }}
                     selectedFile={selectedFile}
                 />
@@ -359,9 +440,16 @@ export default function ReportsPage() {
                     onSuccess={() => {
                         setShowEditReportModal(false);
                         setEditingReport(null);
+<<<<<<< HEAD
                         fetchData();
                     }}
                     selectedFile={selectedFile}
+=======
+                        handleRefresh();
+                    }}
+                    selectedFile={selectedFile}
+                    reports={reports}
+>>>>>>> ad3c281a4869cea727799e74b86176dc12f3469f
                 />
             )}
 
@@ -379,12 +467,13 @@ export default function ReportsPage() {
                         setSelectedReportIndex(null); // 詳細モーダルを閉じる
                         setShowEditReportModal(true);
                     }}
-                    onUpdate={fetchData}
+                    onUpdate={handleRefresh}
                 />
             )}
         </div>
     );
 }
+<<<<<<< HEAD
 
 function cleanText(text: string | null | undefined): string {
     if (!text) return '';
@@ -1652,3 +1741,5 @@ function UserIcon({ size }: { size: number }) {
         </svg>
     );
 }
+=======
+>>>>>>> ad3c281a4869cea727799e74b86176dc12f3469f
