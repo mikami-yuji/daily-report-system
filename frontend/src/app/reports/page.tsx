@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getReports, Report, getCustomers, Customer, updateReport, deleteReport, getInterviewers, getDesigns, Design } from '@/lib/api';
 import { useFile } from '@/context/FileContext';
-import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table, Edit, ChevronLeft, ChevronRight, X, Trash2 } from 'lucide-react';
+import { Plus, Filter, RefreshCw, FileText, ChevronDown, ChevronUp, FolderOpen, LayoutList, Table, Edit, ChevronLeft, ChevronRight, X, Trash2, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import { useOffline } from '@/context/OfflineContext';
 
 // Helper to sanitize report object for API updates
 const sanitizeReport = (report: any) => {
@@ -23,45 +22,34 @@ const sanitizeReport = (report: any) => {
 
 export default function ReportsPage() {
     const { files, selectedFile, setSelectedFile } = useFile();
-    const { isOnline, saveOfflineReport, cachedCustomers, cacheCustomers, cachedReports, cacheReports, offlineReports } = useOffline();
-
-    // Merge offline changes into reports
-    const mergeOfflineReports = (baseReports: Report[]) => {
-        let merged = [...baseReports];
-
-        offlineReports.forEach(offlineReport => {
-            if (offlineReport.type === 'update' && offlineReport.reportId) {
-                const index = merged.findIndex(r => r.管理番号 === offlineReport.reportId);
-                if (index !== -1) {
-                    merged[index] = { ...merged[index], ...offlineReport.data };
-                }
-            } else if (offlineReport.type === 'create') {
-                // For created reports, we might want to prepend them or handle them differently
-                // For now, let's focus on updates as requested
-            }
-        });
-        return merged;
-    };
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedReportIndex, setSelectedReportIndex] = useState<number | null>(null);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-    const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
+    const [viewMode, setViewMode] = useState<'table' | 'timeline' | 'card'>('table');
     const [showNewReportModal, setShowNewReportModal] = useState(false);
     const [showEditReportModal, setShowEditReportModal] = useState(false);
     const [editingReport, setEditingReport] = useState<Report | null>(null);
 
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setViewMode('card');
+            }
+        };
 
+        // Initial check
+        handleResize();
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         if (selectedFile) {
             fetchData();
         }
-<<<<<<< HEAD
-    }, [selectedFile, isOnline, cachedReports]);
-=======
-    }, [selectedFile, isOnline]);
->>>>>>> efe6485 (fix: API proxy port and infinite re-rendering loop)
+    }, [selectedFile]);
 
     const fetchData = () => {
         setLoading(true);
@@ -70,23 +58,11 @@ export default function ReportsPage() {
             const validData = data.filter(report => report.日付 && report.日付.trim() !== '');
             // Sort data initially based on current sortOrder
             const sortedData = sortReports(validData, sortOrder);
-
-            // Merge offline reports
-            const mergedData = mergeOfflineReports(sortedData);
-
-            setReports(mergedData);
-            cacheReports(sortedData); // Cache the ORIGINAL successful response
+            setReports(sortedData);
             setLoading(false);
         }).catch(err => {
             console.error(err);
-            // Fallback to cache if fetch fails (offline or server error)
-            if (cachedReports.length > 0) {
-                const mergedCached = mergeOfflineReports(cachedReports);
-                setReports(mergedCached);
-                toast('キャッシュされた日報を表示します', { icon: '📡' });
-            }
             setLoading(false);
-
         });
     };
 
@@ -166,6 +142,13 @@ export default function ReportsPage() {
                         >
                             <LayoutList size={16} />
                         </button>
+                        <button
+                            onClick={() => setViewMode('card')}
+                            className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-white shadow-sm text-sf-light-blue' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="カード表示"
+                        >
+                            <LayoutGrid size={16} />
+                        </button>
                     </div>
 
                     <button
@@ -196,6 +179,16 @@ export default function ReportsPage() {
                     <div className="p-10 text-center text-sf-text-weak">読み込み中...</div>
                 ) : reports.length === 0 ? (
                     <div className="p-10 text-center text-sf-text-weak">日報が見つかりません</div>
+                ) : viewMode === 'card' ? (
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-gray-50 min-h-full">
+                        {reports.map((report, i) => (
+                            <ReportCard
+                                key={i}
+                                report={report}
+                                onClick={() => handleRowClick(i)}
+                            />
+                        ))}
+                    </div>
                 ) : viewMode === 'table' ? (
                     <div className="divide-y divide-sf-border">
 
@@ -366,14 +359,9 @@ export default function ReportsPage() {
                     onSuccess={() => {
                         setShowEditReportModal(false);
                         setEditingReport(null);
-                        if (isOnline) fetchData(); // Only fetch if online, otherwise we handled it optimistically
+                        fetchData();
                     }}
                     selectedFile={selectedFile}
-                    isOnline={isOnline}
-                    saveOfflineReport={saveOfflineReport}
-                    setReports={setReports}
-                    cacheReports={cacheReports}
-                    reports={reports}
                 />
             )}
 
@@ -454,7 +442,22 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
     const [designMode, setDesignMode] = useState<'none' | 'new' | 'existing'>('none');
     const [designs, setDesigns] = useState<Design[]>([]);
 
-    // Customer fetching moved to useEffect below with offline support
+    // 得意先リストからユニークなエリア値を抽出
+    const availableAreas = useMemo(() => {
+        const areas = customers
+            .map(c => c.エリア)
+            .filter((area): area is string => !!area && area.trim() !== '');
+        return Array.from(new Set(areas)).sort();
+    }, [customers]);
+
+    useEffect(() => {
+        // Fetch customer list
+        getCustomers(selectedFile).then(data => {
+            setCustomers(data);
+        }).catch(err => {
+            console.error('Failed to fetch customers:', err);
+        });
+    }, [selectedFile]);
 
     // Handle customer name change with keyword search across all fields including kana
     const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -578,38 +581,11 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
         }
     };
 
-    const { isOnline, saveOfflineReport, cachedCustomers, cacheCustomers } = useOffline();
-
-    useEffect(() => {
-        // Fetch customer list
-        getCustomers(selectedFile).then(data => {
-            setCustomers(data);
-            cacheCustomers(data); // Cache successful response
-        }).catch(err => {
-            console.error('Failed to fetch customers:', err);
-            // Fallback to cache if fetch fails (offline or server error)
-            if (cachedCustomers.length > 0) {
-                setCustomers(cachedCustomers);
-                toast('キャッシュされた得意先リストを使用します', { icon: '📡' });
-            }
-        });
-<<<<<<< HEAD
-    }, [selectedFile, isOnline, cachedCustomers]);
-=======
-    }, [selectedFile, isOnline]);
->>>>>>> efe6485 (fix: API proxy port and infinite re-rendering loop)
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
 
         try {
-            if (!isOnline) {
-                saveOfflineReport(formData, selectedFile);
-                onSuccess();
-                return;
-            }
-
             const response = await fetch(`/api/reports?filename=${encodeURIComponent(selectedFile)}`, {
                 method: 'POST',
                 headers: {
@@ -719,6 +695,22 @@ function NewReportModal({ onClose, onSuccess, selectedFile }: NewReportModalProp
                                     ))}
                                 </ul>
                             )}
+                        </div>
+
+                        {/* エリアドロップダウン */}
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">エリア</label>
+                            <select
+                                name="エリア"
+                                value={formData.エリア}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            >
+                                <option value="">選択してください</option>
+                                {availableAreas.map(area => (
+                                    <option key={area} value={area}>{area}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
@@ -940,14 +932,9 @@ interface EditReportModalProps {
     onClose: () => void;
     onSuccess: () => void;
     selectedFile: string;
-    isOnline: boolean;
-    saveOfflineReport: (data: any, filename: string, type?: 'create' | 'update', reportId?: number) => void;
-    setReports: React.Dispatch<React.SetStateAction<Report[]>>;
-    cacheReports: (reports: any[]) => void;
-    reports: Report[];
 }
 
-function EditReportModal({ report, onClose, onSuccess, selectedFile, isOnline, saveOfflineReport, setReports, cacheReports, reports }: EditReportModalProps) {
+function EditReportModal({ report, onClose, onSuccess, selectedFile }: EditReportModalProps) {
     const [formData, setFormData] = useState({
         日付: report.日付 || '',
         行動内容: report.行動内容 || '',
@@ -965,29 +952,29 @@ function EditReportModal({ report, onClose, onSuccess, selectedFile, isOnline, s
         コメント返信欄: report.コメント返信欄 || ''
     });
     const [submitting, setSubmitting] = useState(false);
+    const [availableAreas, setAvailableAreas] = useState<string[]>([]);
+
+    // 得意先リストからユニークなエリア値を取得
+    useEffect(() => {
+        getCustomers(selectedFile).then(data => {
+            const areas = data
+                .map(c => c.エリア)
+                .filter((area): area is string => !!area && area.trim() !== '');
+            setAvailableAreas(Array.from(new Set(areas)).sort());
+        }).catch(err => {
+            console.error('Failed to fetch customers for areas:', err);
+        });
+    }, [selectedFile]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
 
-        const { 管理番号, ...rest } = report;
-        const fullReport = { ...rest, ...formData };
-        const sanitized = sanitizeReport(fullReport);
-
         try {
-
-            if (!isOnline) {
-                saveOfflineReport(sanitized, selectedFile, 'update', report.管理番号);
-
-                // Optimistic UI update
-                const updatedReport = { ...report, ...sanitized };
-                setReports(prev => prev.map(r => r.管理番号 === report.管理番号 ? updatedReport : r));
-                cacheReports(reports.map(r => r.管理番号 === report.管理番号 ? updatedReport : r));
-
-                onSuccess();
-                return;
-            }
-
+            // We need to pass the management number to update the specific report
+            const { 管理番号, ...rest } = report;
+            const fullReport = { ...rest, ...formData };
+            const sanitized = sanitizeReport(fullReport);
             await updateReport(report.管理番号, sanitized, selectedFile);
             toast.success('日報を更新しました', {
                 duration: 4000,
@@ -996,24 +983,10 @@ function EditReportModal({ report, onClose, onSuccess, selectedFile, isOnline, s
             onSuccess();
         } catch (error) {
             console.error('Error updating report:', error);
-
-            // Fallback to offline save on error (e.g. server down)
-            saveOfflineReport(sanitized, selectedFile, 'update', report.管理番号);
-
-            // Optimistic UI update
-            const updatedReport = { ...report, ...sanitized };
-            setReports(prev => {
-                const newReports = prev.map(r => r.管理番号 === report.管理番号 ? updatedReport : r);
-                cacheReports(newReports); // Update cache as well
-                return newReports;
-            });
-
-            toast.success('サーバー通信エラー。オフラインで保存しました。', {
+            toast.error('日報の更新に失敗しました', {
                 duration: 4000,
                 position: 'top-right',
-                icon: '📡'
             });
-            onSuccess();
         } finally {
             setSubmitting(false);
         }
@@ -1077,6 +1050,22 @@ function EditReportModal({ report, onClose, onSuccess, selectedFile, isOnline, s
                                 <option value="社内（１日）">社内（１日）</option>
                                 <option value="外出時間">外出時間</option>
                                 <option value="その他">その他</option>
+                            </select>
+                        </div>
+
+                        {/* エリアドロップダウン */}
+                        <div>
+                            <label className="block text-sm font-medium text-sf-text mb-1">エリア</label>
+                            <select
+                                name="エリア"
+                                value={formData.エリア}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-sf-border rounded focus:outline-none focus:ring-2 focus:ring-sf-light-blue"
+                            >
+                                <option value="">選択してください</option>
+                                {availableAreas.map(area => (
+                                    <option key={area} value={area}>{area}</option>
+                                ))}
                             </select>
                         </div>
 
@@ -1586,5 +1575,80 @@ function ReportDetailModal({ report, onClose, onNext, onPrev, hasNext, hasPrev, 
                 isDangerous={true}
             />
         </div>
+    );
+}
+
+interface ReportCardProps {
+    report: Report;
+    onClick: () => void;
+}
+
+function ReportCard({ report, onClick }: ReportCardProps) {
+    const statusColor = report.上長 === '済' && report.山澄常務 === '済' && report.岡本常務 === '済' && report.中野次長 === '済'
+        ? 'bg-green-100 text-green-800'
+        : 'bg-yellow-100 text-yellow-800';
+
+    const statusText = report.上長 === '済' && report.山澄常務 === '済' && report.岡本常務 === '済' && report.中野次長 === '済'
+        ? '承認完了'
+        : '承認待ち';
+
+    return (
+        <div
+            onClick={onClick}
+            className="bg-white rounded-lg border border-sf-border shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
+        >
+            <div className="p-4 border-b border-sf-border bg-gray-50 flex justify-between items-start">
+                <div>
+                    <div className="text-sm text-sf-text-weak mb-1">{report.日付}</div>
+                    <h3 className="font-bold text-sf-text text-lg line-clamp-1">{report.訪問先名}</h3>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor}`}>
+                    {statusText}
+                </span>
+            </div>
+            <div className="p-4 flex-1 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-sf-text">
+                    <span className="bg-sf-light-blue/10 text-sf-light-blue p-1 rounded">
+                        <FileText size={14} />
+                    </span>
+                    <span className="font-medium">{report.行動内容}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-sf-text">
+                    <span className="bg-gray-100 text-gray-600 p-1 rounded">
+                        <UserIcon size={14} />
+                    </span>
+                    <span>{report.面談者 || '面談者なし'}</span>
+                </div>
+                {report.商談内容 && (
+                    <div className="mt-2 text-sm text-sf-text-weak line-clamp-3 bg-gray-50 p-2 rounded border border-gray-100">
+                        {report.商談内容}
+                    </div>
+                )}
+            </div>
+            <div className="p-3 border-t border-sf-border flex justify-end">
+                <span className="text-sf-light-blue text-sm font-medium flex items-center gap-1 hover:underline">
+                    詳細を見る <ChevronRight size={16} />
+                </span>
+            </div>
+        </div>
+    );
+}
+
+function UserIcon({ size }: { size: number }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+        </svg>
     );
 }
